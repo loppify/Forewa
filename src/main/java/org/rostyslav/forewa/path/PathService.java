@@ -37,7 +37,7 @@ public class PathService {
     }
 
     public List<PersonalPathResponse> findAllPaths(UserAccount user) {
-        List<PersonalPath> paths = pathRepository.findAllByUserIdAndArchivedAtIsNull(user.getId());
+        List<PersonalPath> paths = pathRepository.findAllByUserIdAndArchivedAtIsNull(user.getId()).orElse(new ArrayList<>());
 
         List<PersonalPathResponse> result = new ArrayList<>();
         for (PersonalPath path : paths) {
@@ -69,12 +69,12 @@ public class PathService {
 
         pathToModify.setName(path.name());
         pathToModify.setDescription(path.description());
-        pathRepository.save(pathToModify);
+        PersonalPath modifiedPath = pathRepository.save(pathToModify);
         return new PersonalPathResponse(
-                pathToModify.getId(),
-                pathToModify.getName(),
-                pathToModify.getDescription(),
-                pathToModify.getCreatedAt()
+                modifiedPath.getId(),
+                modifiedPath.getName(),
+                modifiedPath.getDescription(),
+                modifiedPath.getCreatedAt()
         );
 
     }

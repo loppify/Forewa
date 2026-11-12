@@ -34,4 +34,22 @@ public class GlobalExceptionHandler {
         problem.setProperty("code", "PATH_DOES_NOT_EXIST");
         return problem;
     }
+
+    @ExceptionHandler(NodeTypeViolation.class)
+    public ProblemDetail handleNodeTypeViolation(NodeTypeViolation e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setTitle("Node type violation");
+        problem.setDetail(e.getMessage());
+        problem.setProperty("code", "INVALID_NODE_TYPE");
+        return problem;
+    }
+
+    @ExceptionHandler(SkillDoesNotExist.class)
+    public ProblemDetail handleSkillDoesNotExist(SkillDoesNotExist e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        problem.setTitle("Skill does not exist");
+        problem.setDetail(e.getMessage());
+        problem.setProperty("code", "SKILL_DOES_NOT_EXIST");
+        return problem;
+    }
 }

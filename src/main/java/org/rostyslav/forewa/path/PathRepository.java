@@ -11,7 +11,7 @@ import java.util.UUID;
 public interface PathRepository extends CrudRepository<PersonalPath, UUID> {
 
 
-    List<PersonalPath> findAllByUserIdAndArchivedAtIsNull(UUID id);
+    Optional<List<PersonalPath>> findAllByUserIdAndArchivedAtIsNull(UUID id);
 
     Optional<PersonalPath> findByIdAndUserId(UUID pathId, UUID userId);
 }
