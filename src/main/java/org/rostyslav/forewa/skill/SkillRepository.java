@@ -21,4 +21,6 @@ public interface SkillRepository extends CrudRepository<SkillNode, UUID> {
 
 
     Optional<SkillNode> findSkillNodeByIdAndArchivedAtIsNullAndPath_UserIdAndPath(UUID id, UUID path_user_id, PersonalPath path);
+
+    List<SkillNode> findAllByPathAndArchivedAtIsNullAndParent_Id(PersonalPath path, UUID parentId);
 }

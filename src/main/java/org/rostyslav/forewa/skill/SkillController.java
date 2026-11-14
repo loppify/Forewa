@@ -19,7 +19,7 @@ public class SkillController {
     }
 
     @PostMapping("/paths/{pathId}/skills")
-    @ResponseStatus(HttpStatus.OK)
+    @ResponseStatus(HttpStatus.CREATED)
     public SkillNodeResponse addSkill(@Valid @RequestBody SkillNodeCreate skillNodeCreate,
                                       @CurrentUser UserAccount user,
                                       @PathVariable("pathId") UUID pathId) {
@@ -27,21 +27,31 @@ public class SkillController {
     }
 
     @GetMapping("/paths/{pathId}/skills")
+    @ResponseStatus(HttpStatus.OK)
     public List<SkillNodeResponse> getSkills(@CurrentUser UserAccount user,
                                              @PathVariable("pathId") UUID pathId) {
         return skillService.getPathSkills(pathId, user);
     }
 
     @GetMapping("/skills/{skillId}")
+    @ResponseStatus(HttpStatus.OK)
     public SkillNodeResponse getSkill(@CurrentUser UserAccount user,
             @PathVariable("skillId") UUID skillId) {
         return skillService.getSkill(skillId, user);
     }
 
     @PatchMapping("/skills/{skillId}")
+    @ResponseStatus(HttpStatus.OK)
     public SkillNodeResponse modifySkill(@CurrentUser UserAccount user,
                                          @Valid @RequestBody SkillNodeModify request,
                                          @PathVariable("skillId") UUID skillId){
         return skillService.modifySkill(skillId, request, user);
+    }
+
+    @PostMapping("/skills/{skillId}")
+    @ResponseStatus(HttpStatus.OK)
+    public void archiveSkill(@CurrentUser UserAccount user,
+                                         @PathVariable("skillId") UUID skillId){
+        skillService.archiveSkill(skillId, user);
     }
 }

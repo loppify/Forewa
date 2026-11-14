@@ -11,6 +11,6 @@ public record SkillNodeCreate(
         String description,
         @NotNull NodeType nodeType,
         UUID parentId,
-        int sortOrder
+        Integer sortOrder
 ) {
 }

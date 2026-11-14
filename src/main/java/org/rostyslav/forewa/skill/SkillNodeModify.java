@@ -10,6 +10,6 @@ public record SkillNodeModify(
         @Size(max = 120) String name,
         String description,
         UUID parentId,
-        int sortOrder
+        Integer sortOrder
 ) {
 }

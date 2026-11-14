@@ -1,5 +1,6 @@
 package org.rostyslav.forewa.common.error;
 
+import org.hibernate.TransientPropertyValueException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -50,6 +51,14 @@ public class GlobalExceptionHandler {
         problem.setTitle("Skill does not exist");
         problem.setDetail(e.getMessage());
         problem.setProperty("code", "SKILL_DOES_NOT_EXIST");
+        return problem;
+    }
+    @ExceptionHandler(NodeHierarchyRecursion.class)
+    public  ProblemDetail handleNodeHierarchyRecursion(NodeHierarchyRecursion e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        problem.setTitle("Node hierarchy recursion");
+        problem.setDetail(e.getMessage());
+        problem.setProperty("code", "NODE_HIERARCHY_RECURSION");
         return problem;
     }
 }

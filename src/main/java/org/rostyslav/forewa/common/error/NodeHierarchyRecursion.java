@@ -1,4 +1,4 @@
-package org.rostyslav.forewa.skill;
+package org.rostyslav.forewa.common.error;
 
 public class NodeHierarchyRecursion extends RuntimeException {
     public NodeHierarchyRecursion() {

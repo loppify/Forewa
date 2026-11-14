@@ -1,12 +1,12 @@
 package org.rostyslav.forewa;
 
-import org.hamcrest.Matcher;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.rostyslav.forewa.auth.UserAccount.UserAccount;
 import org.rostyslav.forewa.auth.UserAccount.UserAccountRepository;
 import org.rostyslav.forewa.auth.UserAccount.UserAccountService;
 import org.rostyslav.forewa.path.*;
+import org.rostyslav.forewa.skill.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
@@ -16,7 +16,6 @@ import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
-import org.springframework.test.web.servlet.ResultMatcher;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -29,7 +28,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -48,13 +46,17 @@ public class Checkpoint2Test {
     @Autowired
     MockMvc mvc;
     @Autowired
-    PathService paths;
+    PathService pathService;
     @Autowired
-    PathRepository repository;
+    PathRepository pathRepository;
     @Autowired
     UserAccountService userAccountService;
     @Autowired
     UserAccountRepository userAccountRepository;
+    @Autowired
+    SkillService skillService;
+    @Autowired
+    SkillRepository skillRepository;
 
     private static final String SUB = "google-123";
     private static final String SUB2 = "google-123456";
@@ -83,7 +85,7 @@ public class Checkpoint2Test {
 
     @BeforeEach
     void clean() {
-        repository.deleteAll();
+        pathRepository.deleteAll();
         userAccountRepository.deleteAll();
     }
 
@@ -114,15 +116,15 @@ public class Checkpoint2Test {
                 PersonalPathResponse.class
         );
 
-        assertThat(paths.findPersonalPath(response.id(), user));
+        assertThat(pathService.findPersonalPath(response.id(), user));
     }
 
 
     @Test
     void listOwnPaths() throws Exception {
         UserAccount user = getUser();
-        paths.createPersonalPath(user, new CreatePath("path1", "description"));
-        paths.createPersonalPath(user, new CreatePath("path2", "description"));
+        pathService.createPersonalPath(user, new CreatePath("path1", "description"));
+        pathService.createPersonalPath(user, new CreatePath("path2", "description"));
         mvc.perform(get("/api/v1/paths")
                         .with(oidcLogin()
                                 .idToken(t -> t.claim("sub", SUB)))
@@ -135,7 +137,7 @@ public class Checkpoint2Test {
     @Test
     void updateOwnPath() throws Exception {
         UserAccount user = getUser();
-        PersonalPathResponse path = paths.createPersonalPath(user, new CreatePath("path1", "description"));
+        PersonalPathResponse path = pathService.createPersonalPath(user, new CreatePath("path1", "description"));
 
         mvc.perform(patch("/api/v1/paths/%s".formatted(path.id()))
                         .with(oidcLogin()
@@ -153,7 +155,7 @@ public class Checkpoint2Test {
     @Test
     void archiveOwnPath() throws Exception {
         UserAccount user = getUser();
-        PersonalPathResponse path = paths.createPersonalPath(user, new CreatePath("path1", "description"));
+        PersonalPathResponse path = pathService.createPersonalPath(user, new CreatePath("path1", "description"));
 
         mvc.perform(post("/api/v1/paths/%s/archive".formatted(path.id()))
                         .with(oidcLogin()
@@ -174,8 +176,8 @@ public class Checkpoint2Test {
     void profileAbstraction() throws Exception {
         UserAccount user2 = getUserAdditional();
         getUser();
-        paths.createPersonalPath(user2, new CreatePath("path1", "description"));
-        paths.createPersonalPath(user2, new CreatePath("path2", "description"));
+        pathService.createPersonalPath(user2, new CreatePath("path1", "description"));
+        pathService.createPersonalPath(user2, new CreatePath("path2", "description"));
 
 
         mvc.perform(get("/api/v1/paths")
@@ -191,5 +193,145 @@ public class Checkpoint2Test {
                         .with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void createRootCategory() throws Exception {
+        UserAccount user1 = getUser();
+
+        PersonalPath path = new PersonalPath();
+        path.setUser(user1);
+        path.setName("My path");
+        path = pathRepository.save(path);
+
+        MvcResult res = mvc.perform(post("/api/v1/paths/%s/skills".formatted(path.getId()))
+                        .with(oidcLogin()
+                                .idToken(t -> t.claim("sub", SUB)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                {"name":"Software Engineering",\s
+                                "nodeType":"CATEGORY"}
+                               \s"""))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Software Engineering"))
+                .andReturn();
+        SkillNodeResponse response = objectMapper.readValue(
+                res.getResponse().getContentAsString(),
+                SkillNodeResponse.class
+        );
+
+        assertThat(skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(response.id(), path));
+
+        res = mvc.perform(post("/api/v1/paths/%s/skills".formatted(path.getId()))
+                        .with(oidcLogin()
+                                .idToken(t -> t.claim("sub", SUB)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                {"name":"BACKEND",\s
+                                "nodeType":"CATEGORY",
+                                "parentId":"%s"}
+                               \s""".formatted(response.id())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Java"))
+                .andReturn();
+        SkillNodeResponse response2 = objectMapper.readValue(
+                res.getResponse().getContentAsString(),
+                SkillNodeResponse.class
+        );
+
+        assertThat(skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(response.id(), path).orElseThrow().equals(response2.skillNodeParent()));
+
+        res = mvc.perform(post("/api/v1/paths/%s/skills".formatted(path.getId()))
+                        .with(oidcLogin()
+                                .idToken(t -> t.claim("sub", SUB)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                {"name":"Java",\s
+                                "nodeType":"TRAINABLE",
+                                "parentId":"%s"}
+                               \s""".formatted(response2.id())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Java"))
+                .andReturn();
+        SkillNodeResponse response3 = objectMapper.readValue(
+                res.getResponse().getContentAsString(),
+                SkillNodeResponse.class
+        );
+
+        assertThat(skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(response2.id(), path).orElseThrow().equals(response3.skillNodeParent()));
+    }
+
+    @Test
+    void cannotAddChildUnderTrainable() throws Exception {
+        UserAccount user = getUser();
+
+        PersonalPath  path = new PersonalPath();
+        path.setUser(user);
+        path.setName("My path");
+        path = pathRepository.save(path);
+
+        SkillNode skillNode = new SkillNode();
+        skillNode.setName("Java");
+        skillNode.setNodeType(NodeType.TRAINABLE);
+        skillNode.setPath(path);
+        skillRepository.save(skillNode);
+
+        mvc.perform(post("/api/v1/paths/"+path.getId()+"/skills")
+                .with(oidcLogin()
+                        .idToken(t -> t.claim("sub", SUB)))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                        """
+                        {"name":"Software Engineering", "nodeType":"TRAINABLE", "parentId":"%s"}
+                        """.formatted(skillNode.getId())))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void cannotCreateIndirectCycle() throws Exception {
+        UserAccount user = getUser();
+
+        PersonalPath  path = new PersonalPath();
+        path.setUser(user);
+        path.setName("My path");
+        path = pathRepository.save(path);
+
+        SkillNode skillNode12 = new SkillNode();
+        skillNode12.setName("12");
+        skillNode12.setNodeType(NodeType.CATEGORY);
+        skillNode12.setPath(path);
+        skillRepository.save(skillNode12);
+
+        SkillNode skillNode23 = new SkillNode();
+        skillNode23.setName("23");
+        skillNode23.setNodeType(NodeType.CATEGORY);
+        skillNode23.setParent(skillNode12);
+        skillNode23.setPath(path);
+        skillRepository.save(skillNode23);
+
+        SkillNode skillNode31 = new SkillNode();
+        skillNode31.setName("31");
+        skillNode31.setParent(skillNode23);
+        skillNode31.setNodeType(NodeType.CATEGORY);
+        skillNode31.setPath(path);
+        skillRepository.save(skillNode31);
+
+        mvc.perform(patch("/api/v1/skills/"+skillNode12.getId())
+                        .with(oidcLogin()
+                                .idToken(t -> t.claim("sub", SUB)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                {"parentId":"%s"}
+                                """.formatted(skillNode31.getId())))
+                .andExpect(status().isConflict());
     }
 }

@@ -2,6 +2,7 @@ package org.rostyslav.forewa.skill;
 
 import jakarta.validation.Valid;
 import org.rostyslav.forewa.auth.UserAccount.UserAccount;
+import org.rostyslav.forewa.common.error.NodeHierarchyRecursion;
 import org.rostyslav.forewa.common.error.NodeTypeViolation;
 import org.rostyslav.forewa.common.error.PathDoesNotExistException;
 import org.rostyslav.forewa.common.error.SkillDoesNotExist;
@@ -9,6 +10,7 @@ import org.rostyslav.forewa.path.PathRepository;
 import org.rostyslav.forewa.path.PersonalPath;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -28,20 +30,31 @@ public class SkillService {
         PersonalPath path = pathRepository.findByIdAndUserId(pathId,
                 user.getId()).orElseThrow(PathDoesNotExistException::new);
         SkillNode parentSkill = null;
+        SkillNode skillNode = new SkillNode();
         if (skillNodeCreate.parentId() != null) {
             parentSkill = skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(skillNodeCreate.parentId(), path).orElseThrow(SkillDoesNotExist::new);
 
             if (parentSkill.getNodeType().equals(NodeType.TRAINABLE)) {
                 throw new NodeTypeViolation();
             }
+            skillNode.setParent(parentSkill);
         }
-        SkillNode skillNode = new SkillNode();
 
         skillNode.setPath(path);
         skillNode.setName(skillNodeCreate.name());
         skillNode.setDescription(skillNodeCreate.description());
-        skillNode.setParent(parentSkill);
-        skillNode.setSortOrder(skillNodeCreate.sortOrder());
+        if (skillNodeCreate.sortOrder() != null) {
+            skillNode.setSortOrder(skillNodeCreate.sortOrder());
+        } else if (skillNodeCreate.parentId() != null) {
+            skillNode.setSortOrder(
+                    skillRepository
+                            .findAllByPathAndArchivedAtIsNullAndParent_Id(
+                                    path,
+                                    skillNodeCreate.parentId()).size()
+            );
+        } else {
+            skillNode.setSortOrder(0);
+        }
         skillNode.setNodeType(skillNodeCreate.nodeType());
         SkillNode savedSkill = skillRepository.save(skillNode);
 
@@ -95,14 +108,24 @@ public class SkillService {
         SkillNode skillNode = skillRepository
                 .findSkillNodeByIdAndArchivedAtIsNullAndPath_UserId(skillId, user.getId())
                 .orElseThrow(SkillDoesNotExist::new);
-        Optional<SkillNode> skillNodeParent = Optional.empty();
-        if (skillNode.getParent() != null) {
-            skillNodeParent = skillRepository
+
+        if (request.parentId() != null) {
+            SkillNode skillNodeParent = skillRepository
                     .findSkillNodeByIdAndArchivedAtIsNullAndPath_UserIdAndPath(
                             request.parentId(),
                             user.getId(),
-                            skillNode.getPath());
-
+                            skillNode.getPath()).orElseThrow(SkillDoesNotExist::new);
+            if (skillNodeParent.getNodeType().equals(NodeType.TRAINABLE)) {
+                throw new NodeTypeViolation();
+            }
+            SkillNode skillNodeParentRecursionCheck = skillNodeParent;
+            while (skillNodeParentRecursionCheck != null) {
+                if (skillNodeParentRecursionCheck.getId().equals(skillNode.getId())) {
+                    throw new NodeHierarchyRecursion();
+                }
+                skillNodeParentRecursionCheck = skillNodeParentRecursionCheck.getParent();
+            }
+            skillNode.setParent(skillNodeParent);
         }
 
         if (request.name() != null) {
@@ -113,18 +136,10 @@ public class SkillService {
             skillNode.setDescription(request.description());
         }
 
-        skillNode.setSortOrder(request.sortOrder());
-        if (skillNodeParent.isPresent()) {
-            if (skillNodeParent.get().getNodeType().equals(NodeType.TRAINABLE)) {
-                throw new NodeTypeViolation();
-            }
-            if (skillNodeParent.get().equals(skillNode) ||
-                    skillNodeParent.get().getSortOrder() > skillNode.getSortOrder()) {
-                throw new NodeHierarchyRecursion();
-            }
-            skillNode.setParent(skillNodeParent.get());
-
+        if (request.sortOrder() != null) {
+            skillNode.setSortOrder(request.sortOrder());
         }
+
         SkillNode updatedSkill = skillRepository.save(skillNode);
 
         return new SkillNodeResponse(
@@ -136,5 +151,13 @@ public class SkillService {
                 updatedSkill.getDescription(),
                 updatedSkill.getSortOrder()
         );
+    }
+
+    public void archiveSkill(UUID skillId, UserAccount user) {
+        SkillNode skillNode = skillRepository
+                .findSkillNodeByIdAndArchivedAtIsNullAndPath_UserId(skillId, user.getId())
+                .orElseThrow(SkillDoesNotExist::new);
+
+        skillNode.setArchivedAt(Instant.now());
     }
 }
