@@ -61,7 +61,7 @@ public class SkillService {
         return new SkillNodeResponse(
                 savedSkill.getId(),
                 savedSkill.getPath().getId(),
-                savedSkill.getParent(),
+                savedSkill.getParent().getId(),
                 savedSkill.getNodeType(),
                 savedSkill.getName(),
                 savedSkill.getDescription(),
@@ -79,7 +79,7 @@ public class SkillService {
             responses.add(new SkillNodeResponse(
                     skillNode.getId(),
                     skillNode.getPath().getId(),
-                    skillNode.getParent(),
+                    skillNode.getParent().getId(),
                     skillNode.getNodeType(),
                     skillNode.getName(),
                     skillNode.getDescription(),
@@ -96,7 +96,7 @@ public class SkillService {
         return new SkillNodeResponse(
                 skillNode.getId(),
                 skillNode.getPath().getId(),
-                skillNode.getParent(),
+                skillNode.getParent().getId(),
                 skillNode.getNodeType(),
                 skillNode.getName(),
                 skillNode.getDescription(),
@@ -145,7 +145,7 @@ public class SkillService {
         return new SkillNodeResponse(
                 updatedSkill.getId(),
                 updatedSkill.getPath().getId(),
-                updatedSkill.getParent(),
+                updatedSkill.getParent().getId(),
                 updatedSkill.getNodeType(),
                 updatedSkill.getName(),
                 updatedSkill.getDescription(),
@@ -159,5 +159,7 @@ public class SkillService {
                 .orElseThrow(SkillDoesNotExist::new);
 
         skillNode.setArchivedAt(Instant.now());
+
+        skillRepository.save(skillNode);
     }
 }

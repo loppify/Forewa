@@ -5,7 +5,7 @@ import java.util.UUID;
 public record SkillNodeResponse(
         UUID id,
         UUID pathId,
-        SkillNode skillNodeParent,
+        UUID parentId,
         NodeType nodeType,
         String name,
         String description,

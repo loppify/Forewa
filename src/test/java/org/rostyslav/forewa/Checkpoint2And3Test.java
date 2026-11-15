@@ -38,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Testcontainers
-public class Checkpoint2Test {
+public class Checkpoint2And3Test {
     @Container
     @ServiceConnection
     static PostgreSQLContainer postgres = new PostgreSQLContainer("postgres:latest");
@@ -85,6 +85,7 @@ public class Checkpoint2Test {
 
     @BeforeEach
     void clean() {
+        skillRepository.deleteAll();
         pathRepository.deleteAll();
         userAccountRepository.deleteAll();
     }
@@ -236,14 +237,14 @@ public class Checkpoint2Test {
                                 "parentId":"%s"}
                                \s""".formatted(response.id())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.name").value("Java"))
+                .andExpect(jsonPath("$.name").value("BACKEND"))
                 .andReturn();
         SkillNodeResponse response2 = objectMapper.readValue(
                 res.getResponse().getContentAsString(),
                 SkillNodeResponse.class
         );
 
-        assertThat(skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(response.id(), path).orElseThrow().equals(response2.skillNodeParent()));
+        assertThat(skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(response.id(), path).orElseThrow().equals(response2.parentId()));
 
         res = mvc.perform(post("/api/v1/paths/%s/skills".formatted(path.getId()))
                         .with(oidcLogin()
@@ -264,7 +265,7 @@ public class Checkpoint2Test {
                 SkillNodeResponse.class
         );
 
-        assertThat(skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(response2.id(), path).orElseThrow().equals(response3.skillNodeParent()));
+        assertThat(skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(response2.id(), path).orElseThrow().equals(response3.parentId()));
     }
 
     @Test
@@ -333,5 +334,38 @@ public class Checkpoint2Test {
                                 {"parentId":"%s"}
                                 """.formatted(skillNode31.getId())))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void cannotUseParentFromAnotherPathOrUser() throws Exception {
+        UserAccount user1 = getUser();
+        UserAccount user2 = getUserAdditional();
+
+        PersonalPath  path1 = new PersonalPath();
+        path1.setUser(user1);
+        path1.setName("My path");
+        path1 = pathRepository.save(path1);
+
+        PersonalPath  path2 = new PersonalPath();
+        path2.setUser(user2);
+        path2.setName("My path2");
+        path2 = pathRepository.save(path2);
+
+        SkillNode skillNode = new SkillNode();
+        skillNode.setName("Java");
+        skillNode.setNodeType(NodeType.CATEGORY);
+        skillNode.setPath(path2);
+        skillRepository.save(skillNode);
+
+        mvc.perform(post("/api/v1/paths/"+path1.getId()+"/skills")
+                        .with(oidcLogin()
+                                .idToken(t -> t.claim("sub", SUB)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                {"name":"Software Engineering", "nodeType":"TRAINABLE", "parentId":"%s"}
+                                """.formatted(skillNode.getId())))
+                .andExpect(status().isNotFound());
     }
 }
