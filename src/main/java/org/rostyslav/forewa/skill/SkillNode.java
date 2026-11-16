@@ -33,9 +33,9 @@ public class SkillNode {
     private String description;
     private int sortOrder;
     @Column(nullable = false)
-    private Boolean rewardEligible = false;
+    private boolean rewardEligible = false;
     @Column(nullable = false)
-    private Boolean masteryEnabled = false;
+    private boolean masteryEnabled = false;
     @Column(nullable = false)
     private short currentMasteryLevel = 0;
 

@@ -61,7 +61,7 @@ public class SkillService {
         return new SkillNodeResponse(
                 savedSkill.getId(),
                 savedSkill.getPath().getId(),
-                savedSkill.getParent().getId(),
+                savedSkill.getParent() != null ? savedSkill.getParent().getId() : null,
                 savedSkill.getNodeType(),
                 savedSkill.getName(),
                 savedSkill.getDescription(),
@@ -79,7 +79,7 @@ public class SkillService {
             responses.add(new SkillNodeResponse(
                     skillNode.getId(),
                     skillNode.getPath().getId(),
-                    skillNode.getParent().getId(),
+                    skillNode.getParent() != null ? skillNode.getParent().getId() : null,
                     skillNode.getNodeType(),
                     skillNode.getName(),
                     skillNode.getDescription(),
@@ -96,7 +96,7 @@ public class SkillService {
         return new SkillNodeResponse(
                 skillNode.getId(),
                 skillNode.getPath().getId(),
-                skillNode.getParent().getId(),
+                skillNode.getParent() != null ? skillNode.getParent().getId() : null,
                 skillNode.getNodeType(),
                 skillNode.getName(),
                 skillNode.getDescription(),
@@ -117,6 +117,9 @@ public class SkillService {
                             skillNode.getPath()).orElseThrow(SkillDoesNotExist::new);
             if (skillNodeParent.getNodeType().equals(NodeType.TRAINABLE)) {
                 throw new NodeTypeViolation();
+            }
+            if (skillNode.getId().equals(skillNodeParent.getId())) {
+                throw new NodeHierarchyRecursion();
             }
             SkillNode skillNodeParentRecursionCheck = skillNodeParent;
             while (skillNodeParentRecursionCheck != null) {
@@ -145,7 +148,7 @@ public class SkillService {
         return new SkillNodeResponse(
                 updatedSkill.getId(),
                 updatedSkill.getPath().getId(),
-                updatedSkill.getParent().getId(),
+                updatedSkill.getParent() != null ? updatedSkill.getParent().getId() : null,
                 updatedSkill.getNodeType(),
                 updatedSkill.getName(),
                 updatedSkill.getDescription(),

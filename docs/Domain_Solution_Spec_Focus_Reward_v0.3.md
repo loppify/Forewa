@@ -1,10 +1,10 @@
 # Domain / Solution Specification
 ## Focus Reward — MVP
 
-**Document version:** 0.2  
+**Document version:** 0.3  
 **Status:** Implementation-ready domain design draft  
-**Date:** 2026-10-28  
-**Source BRD:** `BRD_Focus_Reward_MVP_v0.3.md`  
+**Date:** 2026-11-16  
+**Source BRD:** `BRD_Focus_Reward_MVP_v0.4.md`  
 **Purpose:** Convert the approved MVP business model into precise domain concepts, invariants, state machines, algorithms, transactional operations, persistence constraints, API behavior, and implementation boundaries suitable for Java/Spring Boot development.
 
 ---
@@ -23,7 +23,8 @@ This document defines the solution-level behavior required before implementation
 - XP/level calculation;
 - reward calculation;
 - goals/mastery/prerequisites;
-- maintenance routines;
+- progression/side quests, weekly quest selection, and Side Quest Bank metadata;
+- maintenance routines and derived streak feedback;
 - template revisions/forks;
 - export/import;
 - account deletion;
@@ -242,12 +243,15 @@ UserAccount
  │         ├── SkillGoal
  │         ├── MasteryCriterion
  │         ├── MasteryAttempt
- │         ├── Quest
  │         ├── SkillPrerequisite
  │         ├── FocusSession
  │         └── MaintenanceRoutine
  │              └── MaintenanceCompletion
  │
+ ├── Quest
+ │    ├── optional SkillNode link (required for PROGRESSION)
+ │    └── QuestTag*
+ ├── WeeklyQuestSelection
  ├── RewardTransaction
  ├── RewardDailyAccrual
  └── Feedback
@@ -438,6 +442,22 @@ Admin editing of published content creates a new draft revision.
 
 The previous published JSON payload is not overwritten.
 
+## INV-021 — Quest type boundary
+
+A `PROGRESSION` quest must belong to exactly one TRAINABLE skill.
+
+A `SIDE` quest may exist without any skill or goal.
+
+A SIDE quest without a TRAINABLE skill link cannot be attached to a focus session.
+
+## INV-022 — Weekly quest selection is organizational only
+
+Pinning a quest as weekly `MAIN` or `SIDE` never creates XP, mastery, reward credit, or goal completion.
+
+## INV-023 — Maintenance streak is derived feedback
+
+Current/best streak is calculated from maintenance cadence + completion history. It is not an authoritative balance and does not award XP/reward/mastery.
+
 ---
 
 # 6. UserAccount
@@ -573,7 +593,7 @@ Must have zero children.
 May:
 - have goals;
 - be focused;
-- own quests;
+- own progression quests;
 - have optional mastery;
 - have maintenance routine.
 
@@ -873,7 +893,19 @@ COMPLETED
 ARCHIVED
 ```
 
-## 13.2 Enum: ContentSource
+## 13.2 Enum: QuestType
+
+```text
+PROGRESSION
+SIDE
+```
+
+Semantics:
+
+- `PROGRESSION` = concrete action supporting deliberate skill/goal/mastery progress;
+- `SIDE` = optional real-life activity for exploration, fun, social variety, or general life quality; it may be outside the skill tree.
+
+## 13.3 Enum: ContentSource
 
 ```text
 USER
@@ -886,30 +918,154 @@ Future:
 AI
 ```
 
-## 13.3 Fields
+## 13.4 Optional discovery enums
+
+```text
+EnergyLevel: LOW | MEDIUM | HIGH
+SocialMode: SOLO | SOCIAL | EITHER
+EnvironmentMode: INDOOR | OUTDOOR | EITHER
+```
+
+These are discovery metadata only. They do not affect XP/reward/mastery.
+
+## 13.5 Fields
+
+| Field | Type | Notes |
+|---|---|---|
+| id | UUID | |
+| user_id | UUID FK | authoritative owner |
+| type | enum QuestType | PROGRESSION / SIDE |
+| skill_id | UUID FK nullable | required for PROGRESSION; optional for SIDE |
+| goal_id | UUID FK nullable | PROGRESSION only; must match skill |
+| title | String(180) | |
+| description | Text nullable | |
+| impact | smallint nullable | 1..5; PROGRESSION prioritization only |
+| estimated_minutes | int nullable | discovery/filtering |
+| energy_level | enum nullable | discovery/filtering |
+| social_mode | enum nullable | discovery/filtering |
+| environment_mode | enum nullable | discovery/filtering |
+| expected_cost_cents | int nullable | >=0; discovery/filtering |
+| challenge_level | smallint nullable | 1..5; includes optional fear/challenge framing |
+| location_context | String(180) nullable | e.g. home, city, gym; user-defined text |
+| status | enum | |
+| source | enum | |
+| completed_at | Instant nullable | |
+| archived_at | Instant nullable | |
+| created_at | Instant | |
+| updated_at | Instant | |
+| version | long | |
+
+`impact`, context fields, and tags are intentionally not progression currencies.
+
+## 13.6 QuestTag
+
+User-defined tags cover open-ended context such as mood or custom categories without expanding enums indefinitely.
+
+Fields:
 
 | Field | Type |
 |---|---|
-| id | UUID |
-| skill_id | UUID FK |
-| goal_id | UUID FK nullable |
-| title | String(180) |
-| description | Text nullable |
-| status | enum |
-| source | enum |
-| completed_at | Instant nullable |
-| archived_at | Instant nullable |
-| created_at | Instant |
-| updated_at | Instant |
-| version | long |
+| quest_id | UUID FK |
+| tag | String(40) |
 
-## 13.4 Rules
+Constraint:
 
-- skill must be TRAINABLE;
-- goal, if present, must belong to same skill;
+```text
+UNIQUE(quest_id, tag)
+```
+
+Suggested normalization: trim + case-insensitive comparison.
+
+## 13.7 WeeklyQuestSelection
+
+This records which quests the user chose to surface for a local calendar week.
+
+Enum:
+
+```text
+WeeklyQuestRole:
+MAIN
+SIDE
+```
+
+Fields:
+
+| Field | Type | Notes |
+|---|---|---|
+| id | UUID | |
+| user_id | UUID FK | owner |
+| quest_id | UUID FK | |
+| week_start | LocalDate | Monday in user timezone when selection is made |
+| role | enum WeeklyQuestRole | |
+| sort_order | int | UI order |
+| created_at | Instant | |
+
+Validation:
+
+- `MAIN` requires `quest.type = PROGRESSION`;
+- `SIDE` requires `quest.type = SIDE`;
+- quest belongs to same user;
+- one quest is selected at most once for the same user/week;
+- selection remains historical even after quest completion;
+- no hard MVP cap on selected quests, though UI should encourage a small Main Quest set.
+
+Constraint:
+
+```text
+UNIQUE(user_id, quest_id, week_start)
+```
+
+Week semantics use Monday–Sunday in the user's current timezone for the planning operation. `week_start` is stored and does not move later if timezone changes.
+
+## 13.8 Side Quest Bank
+
+The Side Quest Bank is a query/read model, not a separate aggregate.
+
+Base set:
+
+```text
+user-owned Quest
+WHERE type = SIDE
+AND status = OPEN
+AND archived_at IS NULL
+```
+
+Optional filters:
+
+- maximum estimated minutes;
+- energy;
+- tags/mood;
+- location context;
+- social mode;
+- indoor/outdoor;
+- maximum expected cost;
+- challenge level.
+
+Every metadata field is optional. A side quest remains valid with title only.
+
+## 13.9 Rules
+
+### PROGRESSION
+
+- `skill_id` is required;
+- skill must be TRAINABLE and user-owned;
+- `goal_id`, if present, must belong to same skill;
+- `impact` may be 1..5;
+- may be associated with focus only when normal focus preconditions hold.
+
+### SIDE
+
+- `skill_id` and `goal_id` may both be null;
+- if `skill_id` is null, quest cannot be selected for a focus session;
+- SIDE completion itself never creates XP/reward/mastery;
+- SIDE is allowed specifically so the product can represent life-variety activities without pretending they are skill practice.
+
+### All quests
+
 - completing quest does not create XP;
 - completing quest does not create mastery;
-- archived quest cannot be selected for a new focus session.
+- completing quest does not create reward credit;
+- archived quest cannot be selected for a new focus session or a new weekly selection.
 
 ---
 
@@ -931,7 +1087,7 @@ DISCARDED
 | id | UUID | |
 | user_id | UUID FK | denormalized ownership for fast checks/index |
 | skill_id | UUID FK | TRAINABLE |
-| quest_id | UUID FK nullable | |
+| quest_id | UUID FK nullable | PROGRESSION quest only; must match skill |
 | status | enum | |
 | started_at | Instant | source of stopwatch |
 | stopped_at | Instant nullable | time user finished/reviewed |
@@ -974,6 +1130,7 @@ To start:
 - either:
   - skill has ACTIVE goal, or
   - skill has ACTIVE maintenance routine;
+- if `quest_id` is supplied, quest is OPEN, type PROGRESSION, belongs to user, and references the same skill;
 - no other ACTIVE session remains after stale normalization.
 
 ## 14.5 Stale normalization
@@ -1557,6 +1714,32 @@ Link a completed focus session to a maintenance completion.
 
 Normal focus rules apply.
 
+## 18.8 Maintenance streak feedback
+
+Streak is a derived read model. Do not persist `current_streak` as an authoritative mutable counter.
+
+Return at least:
+
+```text
+currentStreak
+bestStreak
+```
+
+A streak counts **consecutive satisfied due periods**, not arbitrary calendar days.
+
+Semantics:
+
+- `SELECTED_WEEKDAYS`: each selected weekday is one due occurrence; consecutive selected occurrences completed = streak;
+- `TIMES_PER_WEEK`: each Monday–Sunday week whose target count is reached = one satisfied period; consecutive satisfied weeks = streak;
+- `EVERY_N_DAYS`: each due cycle completed before it becomes overdue = one satisfied period; an overdue cycle breaks the streak.
+
+Rules:
+
+- current/best streak derives from routine + completion history;
+- streak produces no XP, reward, mastery, or unlock condition;
+- missing a due period may reset current streak but creates no extra penalty/debt;
+- archived/paused periods must not fabricate completed streak periods.
+
 ---
 
 # 19. Template System
@@ -1670,10 +1853,21 @@ Canonical shape:
         {
           "key": "spring-q1",
           "title": "...",
-          "description": "..."
+          "description": "...",
+          "impact": 4
         }
       ],
       "maintenanceSuggestion": null
+    }
+  ],
+  "sideQuests": [
+    {
+      "key": "explore-q1",
+      "title": "Explore a new place",
+      "description": "...",
+      "estimatedMinutes": 90,
+      "energyLevel": "LOW",
+      "tags": ["outside", "exploration"]
     }
   ],
   "prerequisites": [
@@ -1701,6 +1895,9 @@ Before publication:
 - mastery criteria levels unique/valid;
 - mastery prerequisite only points to mastery-enabled source skill;
 - no duplicate prerequisite condition;
+- starter progression quests remain attached to TRAINABLE skills;
+- top-level side quests have no required skill reference;
+- quest impact/context values and tags satisfy limits/enums;
 - text/size limits respected.
 
 ## 19.6 Fork algorithm
@@ -1717,10 +1914,11 @@ Within one transaction:
    ```
 6. create suggested goals as ACTIVE personal goals by default **only after user confirmation in onboarding**;
 7. create mastery criteria;
-8. create starter quests;
-9. create prerequisite edges using mapped UUIDs;
-10. optionally create maintenance suggestions only as suggestions, not active routines;
-11. save provenance:
+8. create starter PROGRESSION quests;
+9. create top-level starter SIDE quests owned by the user;
+10. create prerequisite edges using mapped UUIDs;
+11. optionally create maintenance suggestions only as suggestions, not active routines;
+12. save provenance:
     - source template id;
     - source revision number;
     - source node key;
@@ -1819,7 +2017,7 @@ Include where relevant:
 - mastery configuration;
 - criteria;
 - attempts;
-- quests;
+- progression/side quests, tags/context metadata, and relevant weekly selections;
 - focus history or summarized focus;
 - XP/time;
 - maintenance routines/completions;
@@ -2140,7 +2338,19 @@ Handle nullable uniqueness carefully for GOAL_ACHIEVED, possibly with separate n
 UNIQUE(skill_id, level)
 ```
 
-## 26.6 Focus
+## 26.6 Quest / weekly selection
+
+```text
+INDEX(quest.user_id, type, status)
+INDEX(quest.skill_id, status)
+UNIQUE(quest_tag.quest_id, normalized_tag)
+UNIQUE(weekly_quest_selection.user_id, quest_id, week_start)
+INDEX(weekly_quest_selection.user_id, week_start, role)
+```
+
+Cross-field rules such as `PROGRESSION requires skill_id` and weekly role/type compatibility should also have DB CHECK constraints where practical, with service validation for ownership/reference semantics.
+
+## 26.7 Focus
 
 ```text
 INDEX(user_id, started_at DESC)
@@ -2155,20 +2365,20 @@ UNIQUE(user_id)
 WHERE status = 'ACTIVE'
 ```
 
-## 26.7 Reward daily accrual
+## 26.8 Reward daily accrual
 
 ```text
 UNIQUE(user_id, local_date)
 ```
 
-## 26.8 Reward transaction
+## 26.9 Reward transaction
 
 ```text
 INDEX(user_id, created_at DESC)
 INDEX(user_id, local_date)
 ```
 
-## 26.9 Maintenance
+## 26.10 Maintenance
 
 Partial unique active routine per skill:
 
@@ -2183,7 +2393,7 @@ Completion:
 UNIQUE(routine_id, completed_on)
 ```
 
-## 26.10 Template revision
+## 26.11 Template revision
 
 ```text
 UNIQUE(template_id, revision_number)
@@ -2274,11 +2484,31 @@ Target level is server-derived (`current + 1`) rather than trusted from client.
 ## 27.7 Quests
 
 ```text
-POST   /skills/{skillId}/quests
-GET    /skills/{skillId}/quests
+POST   /skills/{skillId}/quests          # create PROGRESSION quest
+GET    /skills/{skillId}/quests          # progression quests for skill
+POST   /quests/side                      # create SIDE quest
+GET    /quests/side                      # Side Quest Bank + filters
+GET    /quests/{questId}
 PATCH  /quests/{questId}
 POST   /quests/{questId}/complete
 POST   /quests/{questId}/archive
+
+GET    /quests/weekly?weekStart=YYYY-MM-DD
+PUT    /quests/weekly/{questId}           # role MAIN|SIDE, sortOrder
+DELETE /quests/weekly/{questId}?weekStart=YYYY-MM-DD
+```
+
+Side Quest Bank query may accept optional filters such as:
+
+```text
+maxMinutes
+energy
+tag
+location
+socialMode
+environment
+maxCostCents
+maxChallenge
 ```
 
 ## 27.8 Focus
@@ -2333,7 +2563,7 @@ POST /rewards/spends
 
 ```text
 PUT    /skills/{skillId}/maintenance
-GET    /skills/{skillId}/maintenance
+GET    /skills/{skillId}/maintenance      # includes derived current/best streak
 POST   /maintenance/{routineId}/complete
 POST   /maintenance/{routineId}/pause
 POST   /maintenance/{routineId}/resume
@@ -2468,6 +2698,12 @@ Goal title                1..160
 Goal criterion            1..4000
 Quest title               1..180
 Quest description         <= 4000
+Quest impact              1..5 when present
+Quest estimated minutes   1..10080 when present
+Quest expected cost       >= 0 cents when present
+Quest challenge level     1..5 when present
+Quest tag                  1..40 chars
+Quest tags per quest       <= 20
 Maintenance minimum action 1..240
 Cue text                  <= 240
 Focus note                <= 4000
@@ -2628,9 +2864,21 @@ Owns daily reward formula, recalculation, ledger.
 
 Owns sequential mastery attempts.
 
+## QuestService
+
+Own quest-type validation, progression-vs-side semantics, completion/archive, Side Quest Bank filters, and focus compatibility.
+
+## WeeklyQuestService
+
+Own user-local week selection, MAIN/SIDE role validation, ordering, and weekly read model.
+
 ## MaintenanceService
 
 Owns cadence evaluation/completion.
+
+## MaintenanceStreakCalculator
+
+Pure derived calculation of current/best streak from cadence + completion history. No progression side effects.
 
 ## TemplateDocumentValidator
 
@@ -2661,6 +2909,8 @@ SkillPrerequisiteRepository
 MasteryCriterionRepository
 MasteryAttemptRepository
 QuestRepository
+QuestTagRepository
+WeeklyQuestSelectionRepository
 FocusSessionRepository
 RewardDailyAccrualRepository
 RewardTransactionRepository
@@ -2692,7 +2942,11 @@ PersonalPath 1 ─── * SkillNode
 SkillNode 1 ─── * SkillGoal
 SkillNode 1 ─── * MasteryCriterion
 SkillNode 1 ─── * MasteryAttempt
-SkillNode 1 ─── * Quest
+UserAccount 1 ─── * Quest
+SkillNode 0..1 ─── * Quest
+Quest 1 ─── * QuestTag
+UserAccount 1 ─── * WeeklyQuestSelection
+Quest 1 ─── * WeeklyQuestSelection
 SkillNode 1 ─── * FocusSession
 
 SkillNode * ─── * SkillNode
@@ -2771,6 +3025,8 @@ This is a logical order, not required filenames.
 - mastery_criterion
 - mastery_attempt
 - quest
+- quest_tag
+- weekly_quest_selection
 
 ## M5 — focus
 
@@ -2829,9 +3085,19 @@ Mandatory:
 - mastery condition;
 - mixed AND conditions.
 
-### Maintenance cadence
+### Quest selection/filtering
+
+- PROGRESSION requires TRAINABLE skill;
+- SIDE may be skill-less;
+- MAIN/SIDE weekly role compatibility;
+- Side Quest Bank filter combinations;
+- impact/context never changes XP/reward.
+
+### Maintenance cadence / streak
 
 All cadence modes and boundary dates.
+
+Derived current/best streak across misses, pauses, and successful periods.
 
 ### Template validation
 
@@ -2853,6 +3119,9 @@ Mandatory:
 - reward recalculation transaction;
 - concurrent spends cannot overdraw;
 - ownership isolation;
+- skill-less SIDE quest ownership;
+- weekly quest-selection uniqueness;
+- invalid MAIN/SIDE role mismatch rejected;
 - template fork atomicity;
 - template revision publish;
 - account deletion;
@@ -2922,15 +3191,18 @@ Implement:
 - prerequisite graph;
 - mastery optionality;
 - criteria/attempts;
-- quests.
+- PROGRESSION/SIDE quest model;
+- Side Quest Bank + filters;
+- weekly MAIN/SIDE selection;
+- quest impact/context metadata without XP effects.
 
 Usable outcome:
 
-> progression tree has capability logic.
+> progression tree has capability logic, while weekly priorities and optional life-variety quests remain separate from XP.
 
 ## Milestone 5 — Maintenance
 
-Implement routines/cadence.
+Implement routines/cadence plus derived current/best streak feedback with no bonus progression.
 
 ## Milestone 6 — Templates/admin/fork
 

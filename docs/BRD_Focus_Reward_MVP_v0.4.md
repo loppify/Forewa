@@ -1,14 +1,14 @@
 # Business Requirements Document (BRD)
 ## Focus Reward — Real-Life Skill RPG MVP
 
-**Document version:** 0.3  
+**Document version:** 0.4  
 **Status:** Draft for implementation planning  
-**Date:** 2026-10-28  
+**Date:** 2026-11-16  
 **Product name:** `Focus Reward` (temporary working codename; final brand name is intentionally unresolved)  
 **Product owner / initial administrator:** Founder  
 **Primary implementation objective:** Build a usable MVP that can test whether competence-centered life gamification creates enough recurring value to justify continued development.
 
-**v0.3 change summary:** ordinary stopwatch with a 10-hour sanity threshold and manual review; no periodic 20-minute interruptions; cumulative €1 per 20 reward-eligible minutes with €5/day cap; exact 100-level exponential curve; measurable goals mandatory, mastery optional; prerequisite conditions may use goal completion or mastery; reward eligibility per skill; timezone rules; versioned JSON export; template revision semantics finalized.
+**v0.4 change summary:** adds progression-vs-side quest semantics, a Side Quest Bank, weekly Main/Side Quest selection, optional quest-impact/context metadata, and non-rewarding maintenance streak feedback. Sprint 1 scope remains unchanged.
 
 
 # 1. Executive Summary
@@ -22,7 +22,7 @@ The product separates four concepts:
 3. **Mastery** — an optional capability-assessment layer for skills where staged competence is meaningful.
 4. **Reward** — a personal reward budget earned from eligible focused work.
 
-A user organizes development into paths and skills, defines a concrete goal for every active trainable skill, records focused practice with a normal stopwatch, earns XP and optional reward credit, completes quests, and—where useful—progresses through explicit mastery criteria. Acquired skills can be maintained through recurring minimum-action routines.
+A user organizes development into paths and skills, defines a concrete goal for every active trainable skill, records focused practice with a normal stopwatch, earns XP and optional reward credit, completes progression quests, can keep optional real-life side quests in a separate bank, and—where useful—progresses through explicit mastery criteria. Weekly Main/Side Quest selection helps surface what matters now without changing the XP economy. Acquired skills can be maintained through recurring minimum-action routines with non-punitive streak feedback.
 
 The MVP tests whether this model creates recurring value for real users:
 
@@ -254,6 +254,11 @@ Turning learned skills into small recurring routines will be more actionable tha
 
 Invalidating evidence: users ignore the routines or recreate them elsewhere.
 
+## H9 — Weekly quest framing and life-variety value
+Separating progression quests from optional side quests, while surfacing a small weekly set of Main/Side Quests, will help users choose meaningful next actions without turning character XP into generic task points.
+
+Invalidating evidence: users ignore weekly selection and the Side Quest Bank, or treat the distinction as unnecessary complexity.
+
 # 10. Business Objectives
 
 ## OBJ-01 — Validate the core value proposition
@@ -454,11 +459,33 @@ Reward balance is personal bookkeeping, not real stored money.
 
 ## G. Quests
 
-Users can create/edit/archive/complete quests linked to leaf skills and inherit starter quests from templates.
+MVP supports two quest types:
 
-A quest is a concrete action supporting the current goal and/or next mastery criterion.
+1. **PROGRESSION** — a concrete action tied to one trainable skill and optionally its current goal/mastery criterion.
+2. **SIDE** — an optional real-life activity kept in a personal Side Quest Bank; it may exist outside the skill tree entirely.
 
-Quest completion creates no direct XP or mastery.
+Weekly planning adds a presentation/selection layer:
+- selected PROGRESSION quests can be pinned as **Main Quests** for the current user-local week;
+- selected SIDE quests can be pinned as **Side Quests** for that week;
+- pinning does not change completion semantics, XP, mastery, or reward calculation.
+
+PROGRESSION quests may carry an optional `impact`/goal-contribution value used only for prioritization.
+
+SIDE quests may carry optional context metadata such as:
+- estimated time;
+- energy level;
+- mood/tags;
+- location/context;
+- social mode;
+- indoor/outdoor;
+- expected cost;
+- challenge/fear level.
+
+The Side Quest Bank can be filtered by these fields so the user can answer, for example, “what can I do with 90 minutes, low energy, outside, and little money?”
+
+Quest completion creates no direct XP, mastery, or reward credit. XP/reward still comes only from valid focus sessions.
+
+Templates may provide starter PROGRESSION quests and optional starter SIDE quests.
 
 ## H. Mastery checks
 
@@ -501,6 +528,8 @@ No automatic mastery loss occurs.
 Routine completion can:
 - be marked directly with no XP, or
 - be associated with a timed focus session, which earns normal XP/reward if eligible.
+
+Maintenance may display a derived **current streak** and **best streak** based on consecutive satisfied due periods. Streaks are feedback only: they grant no XP/reward/mastery bonus, and missing a routine does not create an additional punishment beyond breaking the streak.
 
 ## K. Admin-managed templates with revision history
 
@@ -555,7 +584,7 @@ Skill/tree exports may include:
 - current/historical goals;
 - prerequisites;
 - mastery configuration/attempts;
-- quests;
+- progression/side quests and relevant weekly selections;
 - focus sessions or summaries;
 - XP/time;
 - maintenance routines;
@@ -597,7 +626,7 @@ Beta behavior can be evaluated from first-party domain records already necessary
 - 3D/WebGL skill tree;
 - course integrations;
 - calendar sync;
-- punitive streaks;
+- punitive streaks, streak-derived XP/reward bonuses, or extra penalties for breaking a streak;
 - automatic mastery decay;
 - external certification;
 - team/company features;
@@ -625,6 +654,9 @@ Optional attractive charts or lightweight animations may be added only after MUS
 | BR-14 | MVP remains usable without integrated AI. | MUST | No core journey depends on LLM. |
 | BR-15 | Personal progression is private, exportable, and deletable. | MUST | Ownership/export/deletion tests pass. |
 | BR-16 | Product should create recognizable game/progression feeling without requiring a full RPG. | SHOULD | Beta feedback confirms the framing is perceived. |
+| BR-17 | Support weekly Main/Side Quest prioritization without changing XP/mastery/reward economics. | MUST | Weekly selections can be created and do not award progression by themselves. |
+| BR-18 | Support a personal Side Quest Bank for optional life-variety activities outside the skill tree. | MUST | User can create/filter/complete SIDE quests with no required skill link. |
+| BR-19 | Provide optional quest-impact/context metadata and maintenance streak feedback without turning them into currencies. | SHOULD | Metadata affects discovery/display only; streaks have no XP/reward effect. |
 
 # 15. Stakeholder Requirements
 
@@ -717,11 +749,17 @@ Optional attractive charts or lightweight animations may be added only after MUS
 ## Quests
 
 - **FR-060 MUST:** Quest CRUD/archive/complete.
-- **FR-061 MUST:** Quest belongs to one trainable skill.
+- **FR-061 MUST:** Quest has type `PROGRESSION` or `SIDE`.
 - **FR-062 MUST:** Source USER/TEMPLATE.
-- **FR-063 MUST:** Completion does not grant XP/mastery.
-- **FR-064 MUST:** Templates may provide starter quests.
-- **FR-065 SHOULD:** Quest indicates which goal/criterion it supports.
+- **FR-063 MUST:** Quest completion does not directly grant XP, mastery, or reward credit.
+- **FR-064 MUST:** Templates may provide starter progression quests and optional starter side quests.
+- **FR-065 SHOULD:** PROGRESSION quest indicates which goal/criterion it supports.
+- **FR-066 MUST:** PROGRESSION quest belongs to one trainable skill.
+- **FR-067 MUST:** SIDE quest may exist without any skill/goal and appears in the user's Side Quest Bank.
+- **FR-068 MUST:** User can select/pin quests for a user-local week as `MAIN` (PROGRESSION) or `SIDE` (SIDE); selection itself grants no progression/reward.
+- **FR-069 SHOULD:** PROGRESSION quest may store an impact/goal-contribution value used only for prioritization.
+- **FR-069A SHOULD:** SIDE quest may store/filter by estimated time, energy, tags/mood, location/context, social mode, indoor/outdoor, expected cost, and challenge/fear level.
+- **FR-069B MUST:** A SIDE quest without a trainable-skill link cannot be attached to a focus session.
 
 ## Maintenance routines
 
@@ -735,12 +773,14 @@ Optional attractive charts or lightweight animations may be added only after MUS
 - **FR-077 MUST:** Missing routine never lowers mastery.
 - **FR-078 MUST:** Direct routine completion can record no XP.
 - **FR-079 MUST:** Timed maintenance practice uses normal focus/XP/reward rules.
+- **FR-079A SHOULD:** Show current/best maintenance streak derived from satisfied cadence periods.
+- **FR-079B MUST:** Maintenance streaks do not grant XP, reward credit, mastery, or additional penalties.
 
 ## Templates/admin
 
 - **FR-080 MUST:** Admin authorization.
 - **FR-081 MUST:** Template draft/editor.
-- **FR-082 MUST:** Template content can include skills, suggested goals, prerequisites, mastery settings/criteria, starter quests, maintenance suggestions, descriptive examples.
+- **FR-082 MUST:** Template content can include skills, suggested goals, prerequisites, mastery settings/criteria, starter progression/side quests, maintenance suggestions, descriptive examples.
 - **FR-083 MUST:** Validate before publish.
 - **FR-084 MUST:** Editing published template clones latest published revision into new draft.
 - **FR-085 MUST:** Publishing new revision does not mutate existing forks.
@@ -771,21 +811,23 @@ Optional attractive charts or lightweight animations may be added only after MUS
 7. Direct XP belongs only to the leaf skill actually trained.
 8. Parent/category XP/time is aggregation only.
 9. Character XP contains no quest/goal/mastery bonus in MVP.
-10. Character level is 1–100 using the Section 12 normalized exponential formula.
-11. Level 100 = 600,000 XP = 10,000 confirmed focus hours.
-12. Visual level caps at 100; lifetime XP/time may continue.
-13. Focus uses an ordinary stopwatch with no forced periodic interruptions.
-14. Elapsed sessions over 10 hours are REVIEW_REQUIRED and produce no automatic credit.
-15. Manual correction is trusted; a single session can credit at most 600 minutes.
-16. Reward applies only to reward-eligible skills.
-17. Daily reward = €1 per cumulative 20 eligible confirmed minutes, maximum €5/day in the user's configured timezone.
-18. Reward balance is ledger-based.
-19. Prerequisites may require goal achievement or mastery level.
-20. Maintenance is a recurring minimum-action routine, not automatic competence loss.
-21. Forks never change silently after source-template revisions.
-22. Published template edits create new revisions instead of destructive overwrite.
-23. Progression-critical calculations and ownership checks are server-controlled.
-24. The system remains fully usable without AI.
+10. PROGRESSION quests may influence prioritization but never XP directly. SIDE quests may exist outside the skill tree and never create progression merely by completion. Weekly Main/Side selection is organizational only.
+11. Character level is 1–100 using the Section 12 normalized exponential formula.
+12. Level 100 = 600,000 XP = 10,000 confirmed focus hours.
+13. Visual level caps at 100; lifetime XP/time may continue.
+14. Focus uses an ordinary stopwatch with no forced periodic interruptions.
+15. Elapsed sessions over 10 hours are REVIEW_REQUIRED and produce no automatic credit.
+16. Manual correction is trusted; a single session can credit at most 600 minutes.
+17. Reward applies only to reward-eligible skills.
+18. Daily reward = €1 per cumulative 20 eligible confirmed minutes, maximum €5/day in the user's configured timezone.
+19. Reward balance is ledger-based.
+20. Prerequisites may require goal achievement or mastery level.
+21. Maintenance is a recurring minimum-action routine, not automatic competence loss.
+22. Maintenance streak is descriptive feedback only and never a progression/reward multiplier.
+23. Forks never change silently after source-template revisions.
+24. Published template edits create new revisions instead of destructive overwrite.
+25. Progression-critical calculations and ownership checks are server-controlled.
+26. The system remains fully usable without AI.
 
 # 18. Core User Journeys
 
@@ -799,6 +841,12 @@ User starts focus → forgets it → elapsed exceeds 10h → session becomes REV
 
 ## Journey 3 — Goal-driven training
 Open skill → see current goal → choose quest/next action → practice → update progress → achieve/replace goal → optionally create next goal.
+
+## Journey 3A — Weekly Main Quests
+Open weekly planning → choose important PROGRESSION quests → pin them as Main Quests for the current local week → dashboard surfaces them without changing XP/reward rules.
+
+## Journey 3B — Side Quest discovery
+Open Side Quest Bank → filter by available time/energy/context/cost/tags → choose or pin a SIDE quest → complete it for life variety → no direct XP/mastery/reward is created.
 
 ## Journey 4 — Mastery
 For mastery-enabled skill: practice → inspect criterion → attempt → PASS/FAIL → on PASS increment mastery → recompute dependency conditions.
@@ -828,13 +876,16 @@ This is not the database schema.
 - **Mastery Configuration** — whether staged assessment is used.
 - **Mastery Criterion** — requirement for a mastery level.
 - **Mastery Attempt** — PASS/FAIL.
-- **Quest** — concrete training action.
+- **Quest** — user-owned action with type PROGRESSION or SIDE. PROGRESSION supports skill/goal progress; SIDE supports optional life variety and may be independent of the skill tree.
+- **Weekly Quest Selection** — user-local-week pin assigning an eligible quest the presentation role MAIN or SIDE.
+- **Side Quest Context** — optional discovery metadata (time, energy, tags/context, social/environment, cost, challenge) used for filtering only.
 - **Focus Session** — stopwatch event with active/completed/review state.
 - **XP** — confirmed practice signal.
 - **Reward Eligibility** — whether focused minutes for the skill participate in reward calculation.
 - **Reward Transaction** — personal bookkeeping credit/debit/adjustment.
 - **Maintenance Routine** — minimum action + cadence + optional cue.
 - **Maintenance Completion** — completion history.
+- **Maintenance Streak** — derived current/best consecutive satisfied cadence periods; display feedback only, not a stored currency/reward source.
 - **Template** — reusable admin-managed content.
 - **Template Revision** — versioned historical snapshot; published revisions are immutable records, while a new draft revision remains editable until publication.
 - **Export Package** — versioned structured data.
@@ -895,6 +946,9 @@ System-owned state—IDs, ownership, timestamps, XP, actual mastery, reward bala
 - **UX-05:** Focus completion gives immediate result summary.
 - **UX-06:** No punishment-first design or automatic mastery downgrade.
 - **UX-07:** User can edit their own path; templates are starting points.
+- **UX-08:** Weekly UI clearly separates Main Quests, Side Quests, and Maintenance rather than merging them into one generic task list.
+- **UX-09:** Side Quest Bank filters must help discovery without requiring every metadata field.
+- **UX-10:** Streaks are presented as descriptive feedback, never as punishment or bonus currency.
 
 
 # 23. Minimal Game Layer
@@ -906,6 +960,8 @@ Included:
 - mastery labels;
 - locked/unlocked states;
 - basic game-inspired visual language;
+- weekly Main Quest / Side Quest framing;
+- maintenance current/best streak counters with no bonus currency;
 - lightweight completion/level-up feedback.
 
 Excluded:
@@ -1045,8 +1101,11 @@ Does the tree influence what gets trained next?
 ## Reward engagement
 Do users enable reward on selected skills, earn credit, and actually record spending?
 
+## Quest engagement
+Do users pin meaningful Main Quests for the week, use the Side Quest Bank, and complete SIDE quests without confusing them with XP-producing skill practice?
+
 ## Maintenance engagement
-Do due routines produce real maintenance actions?
+Do due routines produce real maintenance actions, and does non-punitive streak feedback help without distorting behavior?
 
 ## Export engagement
 Do users export data for backup/analysis, especially external AI analysis?
@@ -1259,11 +1318,19 @@ Before external beta:
 - GOAL_ACHIEVED prerequisite works;
 - MASTERY_AT_LEAST prerequisite works.
 
+## Quests
+- PROGRESSION and SIDE quests are distinguishable;
+- PROGRESSION requires a trainable skill; SIDE can exist without one;
+- weekly MAIN/SIDE selection works in the user-local week;
+- Side Quest Bank can be filtered using available metadata;
+- quest completion/pinning never grants direct XP/mastery/reward.
+
 ## Maintenance
 - all three cadence modes work;
 - direct completion can record no XP;
 - timed maintenance can use normal focus;
-- missed routine never lowers mastery.
+- missed routine never lowers mastery;
+- current/best streak is derived and produces no bonus/penalty.
 
 ## Export
 - skill/subtree/path/account JSON validates against export schema;
@@ -1291,7 +1358,8 @@ Before external beta:
 | H5 Skill-path value | BR-07, BR-08, FR-010–017, FR-028–029 |
 | H6 Setup friction | FR-011, FR-080–087, UX-02 |
 | H7 Self-assessed mastery | FR-020–027 |
-| H8 Maintenance routine | BR-09, FR-070–079 |
+| H8 Maintenance routine | BR-09, BR-19, FR-070–079B |
+| H9 Weekly quest/life variety | BR-17–19, FR-060–069B, UX-08–10 |
 | OBJ-03 Time-to-value | Journey 1, activation/time-to-value metrics |
 | OBJ-04 Beta evidence | Section 26 + first-party domain records |
 | OBJ-05 Data ownership | BR-11, BR-15, FR-090–097 |
@@ -1315,7 +1383,9 @@ Before external beta:
 - cumulative €1/20 eligible minutes;
 - €5/day cap;
 - reward ledger/spending;
-- quests;
+- progression + side quests;
+- weekly Main/Side Quest selection;
+- Side Quest Bank;
 - maintenance routines with three cadence modes;
 - admin templates + revision history;
 - fork independence;
@@ -1331,7 +1401,9 @@ Before external beta:
 - accessibility baseline;
 - backup/recovery automation;
 - CSV focus-history export;
-- optional maintenance cue/context.
+- optional maintenance cue/context;
+- quest impact/context metadata and Side Quest filters;
+- derived maintenance current/best streak.
 
 ## COULD
 - non-blocking long-session warning;

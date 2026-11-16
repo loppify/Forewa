@@ -18,13 +18,13 @@ This log records the developer's work and learning for career reflection. It dis
 - Added owner-scoped path/skill lookups and parent validation for same-path membership and the `CATEGORY`/`TRAINABLE` rule.
 - Learned how Spring Data derived-query names traverse nested entity properties, including the skill → path → user ownership chain.
 - Added optional `sortOrder` handling and learned that the service must choose an order when the request omits it; the current defaulting behavior still merits review for gaps and root-node ordering.
-- Current API response DTO includes a `SkillNode` parent entity. Review identified that serializing this entity exposes nested persistence data, including account fields; replace it with an intentional response representation before considering the API complete.
+- Changed the response parent field to a nullable parent UUID rather than serializing a `SkillNode` entity, avoiding nested persistence data and account-field exposure.
 
 ### Hierarchy-cycle validation — targeted test verified
 
 - Implemented an ancestor-walk check when reparenting a skill: start at the proposed parent and follow parent links toward the root; reject the move if the moved node is encountered.
 - Added a test that persists a valid three-node chain and attempts to move its root under a descendant.
-- Verified with `mvn -DforkCount=0 -Dtest=Checkpoint2Test#cannotCreateIndirectCycle test`: **1 test passed**.
+- Verified the indirect-cycle scenario in the focused test and again in the full clean suite.
 - Learned that a cycle test should build a valid persisted tree and exercise a move that would create a cycle, rather than relying on unsaved circular JPA objects.
 
 ### Error handling and optional PATCH fields — concepts reviewed
@@ -36,17 +36,14 @@ This log records the developer's work and learning for career reflection. It dis
 ### Mockito agent and test-runner diagnostics — in progress
 
 - Added Mockito as a Java agent for Maven Surefire after encountering JDK dynamic-agent warnings.
-- A normal `mvn test` currently fails before test execution because Surefire receives the unresolved `@{argLine}` placeholder. Mockito's documented Maven setup requires the late-replaced `argLine` property to exist (an empty property is the documented fallback when no other agent configuration defines it).
-- Confirm the POM configuration and rerun the standard test command; do not count the full suite as passing yet.
+- POM review found Surefire's `@{argLine}` placeholder had no project property; the developer added an empty `<argLine/>` property, allowing the standard test JVM to start.
+- Test output shows Maven is running on JDK 27 even though `java.version` targets Java 21. Align the Maven runtime with JDK 21 (or deliberately configure a supported toolchain) when addressing JDK-specific warnings.
 
 ## Current verification and follow-ups — 2026-11-15
 
-- `mvn test`: **failed before tests ran**; forked JVM received literal `@{argLine}`.
-- Diagnostic run `mvn -DforkCount=0 test`: **21 tests run, 1 assertion failure, 8 errors**.
-  - `Checkpoint2Test.createRootCategory` expected `"Java"` although the request sends `"BACKEND"`.
-  - Eight setup errors originate in `Checkpoint2Test.clean()`: it deletes paths before deleting skill nodes that reference them, violating the foreign key. Delete dependent test data before its referenced rows.
-- The focused indirect-cycle test passes, as noted above.
-- Checkpoint 3 is **in progress**, not complete. Remaining work includes fixing test setup/assertions, getting the standard Maven test invocation working, testing self-parent rejection and tree persistence after reload/restart, verifying archive persistence, and addressing entity serialization in `SkillNodeResponse`.
+- An earlier non-clean test run discovered a stale compiled `Checkpoint2Test` after its source was renamed. Its old cleanup code caused foreign-key errors; the current `Checkpoint2And3Test.clean()` deletes skills before paths.
+- Latest `mvn clean test`: **21 tests run, 0 failures, 0 errors**. The clean build removed stale test bytecode left by renaming the test class, and null-safe parent-ID response mapping fixed the root-skill NPE.
+- Checkpoint 3 is **in progress**, not complete. Remaining test coverage includes GET/list and individual skill reads, ordinary PATCH behavior, archive persistence, self-parent rejection, and tree persistence after reload/restart.
 
 ## Skills practiced
 

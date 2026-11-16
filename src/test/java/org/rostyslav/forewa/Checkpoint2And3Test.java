@@ -212,9 +212,9 @@ public class Checkpoint2And3Test {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
                                 """
-                                {"name":"Software Engineering",\s
-                                "nodeType":"CATEGORY"}
-                               \s"""))
+                                         {"name":"Software Engineering",\s
+                                         "nodeType":"CATEGORY"}
+                                        \s"""))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Software Engineering"))
                 .andReturn();
@@ -223,7 +223,10 @@ public class Checkpoint2And3Test {
                 SkillNodeResponse.class
         );
 
-        assertThat(skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(response.id(), path));
+        assertThat(skillRepository
+                .findSkillNodeByIdAndPathAndArchivedAtIsNull(response.id(), path)
+                .isPresent())
+                .isTrue();
 
         res = mvc.perform(post("/api/v1/paths/%s/skills".formatted(path.getId()))
                         .with(oidcLogin()
@@ -232,10 +235,10 @@ public class Checkpoint2And3Test {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
                                 """
-                                {"name":"BACKEND",\s
-                                "nodeType":"CATEGORY",
-                                "parentId":"%s"}
-                               \s""".formatted(response.id())))
+                                         {"name":"BACKEND",\s
+                                         "nodeType":"CATEGORY",
+                                         "parentId":"%s"}
+                                        \s""".formatted(response.id())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("BACKEND"))
                 .andReturn();
@@ -244,7 +247,10 @@ public class Checkpoint2And3Test {
                 SkillNodeResponse.class
         );
 
-        assertThat(skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(response.id(), path).orElseThrow().equals(response2.parentId()));
+        assertThat(skillRepository
+                .findSkillNodeByIdAndPathAndArchivedAtIsNull(response.id(), path)
+                .orElseThrow()
+                .getId()).isEqualTo(response2.parentId());
 
         res = mvc.perform(post("/api/v1/paths/%s/skills".formatted(path.getId()))
                         .with(oidcLogin()
@@ -253,10 +259,10 @@ public class Checkpoint2And3Test {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
                                 """
-                                {"name":"Java",\s
-                                "nodeType":"TRAINABLE",
-                                "parentId":"%s"}
-                               \s""".formatted(response2.id())))
+                                         {"name":"Java",\s
+                                         "nodeType":"TRAINABLE",
+                                         "parentId":"%s"}
+                                        \s""".formatted(response2.id())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.name").value("Java"))
                 .andReturn();
@@ -265,14 +271,17 @@ public class Checkpoint2And3Test {
                 SkillNodeResponse.class
         );
 
-        assertThat(skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(response2.id(), path).orElseThrow().equals(response3.parentId()));
+        assertThat(skillRepository
+                .findSkillNodeByIdAndPathAndArchivedAtIsNull(response2.id(), path)
+                .orElseThrow()
+                .getId()).isEqualTo(response3.parentId());
     }
 
     @Test
     void cannotAddChildUnderTrainable() throws Exception {
         UserAccount user = getUser();
 
-        PersonalPath  path = new PersonalPath();
+        PersonalPath path = new PersonalPath();
         path.setUser(user);
         path.setName("My path");
         path = pathRepository.save(path);
@@ -283,15 +292,15 @@ public class Checkpoint2And3Test {
         skillNode.setPath(path);
         skillRepository.save(skillNode);
 
-        mvc.perform(post("/api/v1/paths/"+path.getId()+"/skills")
-                .with(oidcLogin()
-                        .idToken(t -> t.claim("sub", SUB)))
-                .with(csrf())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                        """
-                        {"name":"Software Engineering", "nodeType":"TRAINABLE", "parentId":"%s"}
-                        """.formatted(skillNode.getId())))
+        mvc.perform(post("/api/v1/paths/" + path.getId() + "/skills")
+                        .with(oidcLogin()
+                                .idToken(t -> t.claim("sub", SUB)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(
+                                """
+                                        {"name":"Software Engineering", "nodeType":"TRAINABLE", "parentId":"%s"}
+                                        """.formatted(skillNode.getId())))
                 .andExpect(status().isBadRequest());
     }
 
@@ -299,7 +308,7 @@ public class Checkpoint2And3Test {
     void cannotCreateIndirectCycle() throws Exception {
         UserAccount user = getUser();
 
-        PersonalPath  path = new PersonalPath();
+        PersonalPath path = new PersonalPath();
         path.setUser(user);
         path.setName("My path");
         path = pathRepository.save(path);
@@ -324,15 +333,15 @@ public class Checkpoint2And3Test {
         skillNode31.setPath(path);
         skillRepository.save(skillNode31);
 
-        mvc.perform(patch("/api/v1/skills/"+skillNode12.getId())
+        mvc.perform(patch("/api/v1/skills/" + skillNode12.getId())
                         .with(oidcLogin()
                                 .idToken(t -> t.claim("sub", SUB)))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
                                 """
-                                {"parentId":"%s"}
-                                """.formatted(skillNode31.getId())))
+                                        {"parentId":"%s"}
+                                        """.formatted(skillNode31.getId())))
                 .andExpect(status().isConflict());
     }
 
@@ -341,12 +350,12 @@ public class Checkpoint2And3Test {
         UserAccount user1 = getUser();
         UserAccount user2 = getUserAdditional();
 
-        PersonalPath  path1 = new PersonalPath();
+        PersonalPath path1 = new PersonalPath();
         path1.setUser(user1);
         path1.setName("My path");
         path1 = pathRepository.save(path1);
 
-        PersonalPath  path2 = new PersonalPath();
+        PersonalPath path2 = new PersonalPath();
         path2.setUser(user2);
         path2.setName("My path2");
         path2 = pathRepository.save(path2);
@@ -357,15 +366,15 @@ public class Checkpoint2And3Test {
         skillNode.setPath(path2);
         skillRepository.save(skillNode);
 
-        mvc.perform(post("/api/v1/paths/"+path1.getId()+"/skills")
+        mvc.perform(post("/api/v1/paths/" + path1.getId() + "/skills")
                         .with(oidcLogin()
                                 .idToken(t -> t.claim("sub", SUB)))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
                                 """
-                                {"name":"Software Engineering", "nodeType":"TRAINABLE", "parentId":"%s"}
-                                """.formatted(skillNode.getId())))
+                                        {"name":"Software Engineering", "nodeType":"TRAINABLE", "parentId":"%s"}
+                                        """.formatted(skillNode.getId())))
                 .andExpect(status().isNotFound());
     }
 }

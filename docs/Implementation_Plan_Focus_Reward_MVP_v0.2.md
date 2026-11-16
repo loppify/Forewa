@@ -1,11 +1,11 @@
 # Implementation Plan / Epic Breakdown
 ## Focus Reward — MVP
 
-**Document version:** 0.1  
-**Date:** 2026-10-29  
+**Document version:** 0.2  
+**Date:** 2026-11-16  
 **Source documents:**  
-- `BRD_Focus_Reward_MVP_v0.3.md`
-- `Domain_Solution_Spec_Focus_Reward_v0.2.md`
+- `BRD_Focus_Reward_MVP_v0.4.md`
+- `Domain_Solution_Spec_Focus_Reward_v0.3.md`
 
 ---
 
@@ -726,6 +726,8 @@ skill_prerequisite
 mastery_criterion
 mastery_attempt
 quest
+quest_tag
+weekly_quest_selection
 ```
 
 ## Prerequisites
@@ -773,11 +775,39 @@ FAIL records attempt only.
 
 ## Quests
 
-CRUD.
+Implement two quest types:
 
-Optional goal link.
+```text
+PROGRESSION
+SIDE
+```
 
-No XP bonus.
+### PROGRESSION quests
+
+- belong to TRAINABLE skill;
+- optional goal link;
+- optional impact 1..5 for prioritization only;
+- can be associated with focus when normal focus rules pass.
+
+### SIDE quests
+
+- may exist without a skill/goal;
+- live in a personal Side Quest Bank;
+- optional discovery metadata: time, energy, tags/mood, location, social mode, indoor/outdoor, cost, challenge;
+- completion creates no XP/mastery/reward.
+
+### Weekly quest selection
+
+Add user-local-week selection:
+
+```text
+MAIN → PROGRESSION quest
+SIDE → SIDE quest
+```
+
+Selection/pinning is presentation and prioritization only.
+
+No quest completion/pinning bonus XP.
 
 ## Derived state
 
@@ -805,8 +835,13 @@ Do not persist as source-of-truth.
 - sequential PASS;
 - FAIL;
 - criterion edit does not alter old snapshot;
-- quest completion gives no XP;
-- cross-user prerequisite rejected.
+- PROGRESSION quest requires TRAINABLE skill;
+- skill-less SIDE quest allowed and remains user-owned;
+- weekly MAIN/SIDE role mismatch rejected;
+- duplicate same-week selection rejected;
+- Side Quest Bank filters work with partially populated metadata;
+- quest completion/pinning gives no XP/mastery/reward;
+- cross-user prerequisite/quest access rejected.
 
 ## Frontend
 
@@ -816,7 +851,10 @@ Skill detail expands:
 - locked reasons;
 - mastery toggle/criteria/current level;
 - attempt mastery;
-- quests.
+- progression quests;
+- weekly Main Quests;
+- Side Quest Bank with filters;
+- selected weekly Side Quests.
 
 Path tree shows:
 
@@ -826,6 +864,8 @@ Path tree shows:
 - achieved.
 
 ## Exit criterion
+
+A user can also select meaningful weekly Main Quests and choose a SIDE quest from the Side Quest Bank without any quest completion creating XP by itself.
 
 A user can create a progression chain such as:
 
@@ -896,6 +936,17 @@ Normal XP/reward rules apply.
 
 Build pure cadence evaluator.
 
+### 6.5 Streak feedback
+
+Build a pure derived streak calculator returning:
+
+```text
+currentStreak
+bestStreak
+```
+
+Streak counts consecutive satisfied cadence periods, not generic daily check-ins. It has no XP/reward/mastery effect.
+
 ## Tests
 
 Extensive date-boundary tests.
@@ -903,6 +954,8 @@ Extensive date-boundary tests.
 Use user timezone.
 
 Test Monday/Sunday boundaries.
+
+Test current/best streak across satisfied periods, misses, pause/resume, and each cadence type.
 
 ## Frontend
 
@@ -912,9 +965,11 @@ Maintenance view:
 - cadence;
 - cue;
 - current due state;
-- completion button.
+- completion button;
+- current streak;
+- best streak.
 
-Dashboard can show due routines.
+Dashboard can show due routines. Streak feedback must not imply bonus XP/reward.
 
 ## Exit criterion
 
@@ -1199,7 +1254,9 @@ Founder must actually use:
 - at least one mastery-enabled skill;
 - one mastery-disabled performance skill;
 - prerequisite unlock;
-- maintenance routine;
+- weekly Main Quest selection;
+- at least one skill-less SIDE quest created, filtered, selected, and completed;
+- maintenance routine including a visible streak change;
 - reward spend;
 - export for AI analysis;
 - template fork.
@@ -1293,6 +1350,8 @@ com.focusreward
 │   ├── prerequisite
 │   └── mastery
 ├── quest
+│   ├── weekly
+│   └── tag
 ├── focus
 ├── reward
 ├── maintenance
@@ -1317,6 +1376,7 @@ V003__skill_goal.sql
 V004__focus_session.sql
 V005__reward.sql
 V006__prerequisite_mastery_quest.sql
+  → includes quest, quest_tag, weekly_quest_selection
 V007__maintenance.sql
 V008__template.sql
 V009__feedback.sql
@@ -1346,6 +1406,9 @@ Suggested surface:
 
 /skills/{id}
 
+/quests
+  → weekly Main/Side selection + Side Quest Bank
+
 /focus
   current focus overlay/widget may be global
 
@@ -1374,6 +1437,8 @@ Dashboard should answer:
 - What am I training?
 - Is focus running?
 - What goal am I moving toward?
+- What are my Main Quests this week?
+- Which selected Side Quests are available?
 - What maintenance is due?
 - How much reward balance do I have?
 - What level am I?
@@ -1388,6 +1453,7 @@ Dashboard should answer:
 - state correctness;
 - fast focus start/finish;
 - goal visibility;
+- clear Main Quest / Side Quest / Maintenance separation;
 - recovery from mistakes.
 
 ## P1
@@ -1506,8 +1572,10 @@ Only then begin focus.
 | Reward economy | 4 |
 | Prerequisites | 5 |
 | Optional mastery | 5 |
-| Quests | 5 |
-| Maintenance | 6 |
+| Progression + side quests | 5 |
+| Weekly Main/Side quest selection | 5 |
+| Side Quest Bank / filters | 5 |
+| Maintenance + streak feedback | 6 |
 | Templates / revisions / forks | 7 |
 | Structured import | 7 |
 | Export | 8 |

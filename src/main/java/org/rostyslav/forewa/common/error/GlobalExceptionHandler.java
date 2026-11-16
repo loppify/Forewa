@@ -1,5 +1,6 @@
 package org.rostyslav.forewa.common.error;
 
+import org.apache.coyote.BadRequestException;
 import org.hibernate.TransientPropertyValueException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -59,6 +60,15 @@ public class GlobalExceptionHandler {
         problem.setTitle("Node hierarchy recursion");
         problem.setDetail(e.getMessage());
         problem.setProperty("code", "NODE_HIERARCHY_RECURSION");
+        return problem;
+
+    }
+    @ExceptionHandler(BadRequestException.class)
+    public ProblemDetail handleInvalidRequest(BadRequestException e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setTitle("Invalid request");
+        problem.setDetail(e.getMessage());
+        problem.setProperty("code", "INVALID_REQUEST");
         return problem;
     }
 }
