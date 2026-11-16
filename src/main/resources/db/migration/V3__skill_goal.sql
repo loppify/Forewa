@@ -19,9 +19,6 @@ CREATE TABLE skill_goals
 );
 
 ALTER TABLE skill_goals
-    ADD CONSTRAINT uc_skill_goals_skill UNIQUE (skill_id);
-
-ALTER TABLE skill_goals
     ADD CONSTRAINT FK_SKILL_GOALS_ON_SKILL FOREIGN KEY (skill_id) REFERENCES skill_nodes (id);
 
 CREATE UNIQUE INDEX one_active_goal_per_skill_constraint

@@ -43,8 +43,9 @@ This log records the developer's work and learning for career reflection. It dis
 
 - Added the initial `SkillGoal` entity, create request/response DTOs, repository, service/controller endpoint, and `V3__skill_goal.sql` migration.
 - Learned to compare JPA entity mappings and Flyway column definitions using Hibernate's `ddl-auto=validate` rather than letting Hibernate alter the schema.
-- `mvn test` currently cannot initialize the application context: Hibernate reports that `baseline_value` is SQL `INTEGER` while the `BigDecimal` entity mapping expects `NUMERIC`. The `LocalDate`/`target_date` mapping and goal cardinality also need alignment with the spec.
-- Review follow-ups: associate each goal with the requested, authenticated user's trainable skill; scope the active-goal invariant to one goal per skill; correct enum validation; and set lifecycle timestamps appropriately. Goal creation is not complete yet.
+- Corrected the numeric and date migration types to match the `BigDecimal` and `LocalDate` entity mappings, and retained the partial unique index for one active goal per skill rather than an unconditional unique constraint.
+- Updated goal creation to associate an owner-scoped skill, reject category skills, permit planned goals alongside an active goal, initialize the active start time, validate enum presence, and return a conflict for an existing active goal.
+- Goal creation remains in progress: there are not yet goal-specific endpoint tests, and the rest of the goal lifecycle is not implemented.
 
 ## Verification history — 2026-11-15
 
@@ -54,8 +55,8 @@ This log records the developer's work and learning for career reflection. It dis
 
 ## Current verification — 2026-11-16
 
-- `mvn test`: **21 tests run, 0 assertion failures, 21 errors** because Spring's application context fails Hibernate schema validation on `skill_goals.baseline_value` (`INTEGER` in Flyway, `NUMERIC` expected for `BigDecimal`). These are repeated context-load errors from one schema mismatch, not 21 independent test defects.
-- The newly added goal-creation slice remains **in progress**; see the follow-ups above before treating this as a working feature.
+- Latest `mvn test` — 2026-11-16: **21 tests run, 0 failures, 0 errors** after the goal-model/migration updates.
+- There are still no goal-specific tests in the test suite, so the goal creation endpoint and its domain rules are not yet verified. The new goal-creation slice remains **in progress**.
 
 ## Skills practiced
 

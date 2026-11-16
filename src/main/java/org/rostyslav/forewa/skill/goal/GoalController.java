@@ -1,9 +1,9 @@
 package org.rostyslav.forewa.skill.goal;
 
 import jakarta.validation.Valid;
-import org.apache.coyote.BadRequestException;
 import org.rostyslav.forewa.auth.CurrentUser.CurrentUser;
 import org.rostyslav.forewa.auth.UserAccount.UserAccount;
+import org.rostyslav.forewa.common.error.BadRequestException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 

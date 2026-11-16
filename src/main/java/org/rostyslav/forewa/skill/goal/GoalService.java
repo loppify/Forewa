@@ -2,8 +2,10 @@ package org.rostyslav.forewa.skill.goal;
 
 import jakarta.validation.Valid;
 import org.rostyslav.forewa.auth.UserAccount.UserAccount;
+import org.rostyslav.forewa.common.error.ActiveGoalAlreadyExists;
 import org.rostyslav.forewa.common.error.BadRequestException;
 import org.rostyslav.forewa.common.error.SkillDoesNotExist;
+import org.rostyslav.forewa.skill.NodeType;
 import org.rostyslav.forewa.skill.SkillNode;
 import org.rostyslav.forewa.skill.SkillRepository;
 import org.springframework.stereotype.Service;
@@ -34,14 +36,18 @@ public class GoalService {
                         user.getId(),
                         skillId);
 
-        if (activeGoal != null) {
-            throw new BadRequestException("Active goal already exists");
+        if (request.status() == GoalStatus.ACTIVE && activeGoal != null) {
+            throw new ActiveGoalAlreadyExists("Active goal already exists");
         }
+
+
 
         SkillNode skillNode = skillRepository
                 .findSkillNodeByIdAndArchivedAtIsNullAndPath_UserId(skillId, user.getId())
                 .orElseThrow(SkillDoesNotExist::new);
-
+        if (skillNode.getNodeType() == NodeType.CATEGORY){
+            throw new BadRequestException("Invalid category node");
+        }
         SkillGoal goal = new SkillGoal();
         goal.setSkillNode(skillNode);
         goal.setTitle(request.title());

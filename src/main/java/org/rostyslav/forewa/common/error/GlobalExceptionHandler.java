@@ -52,8 +52,9 @@ public class GlobalExceptionHandler {
         problem.setProperty("code", "SKILL_DOES_NOT_EXIST");
         return problem;
     }
+
     @ExceptionHandler(NodeHierarchyRecursion.class)
-    public  ProblemDetail handleNodeHierarchyRecursion(NodeHierarchyRecursion e) {
+    public ProblemDetail handleNodeHierarchyRecursion(NodeHierarchyRecursion e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
         problem.setTitle("Node hierarchy recursion");
         problem.setDetail(e.getMessage());
@@ -61,12 +62,22 @@ public class GlobalExceptionHandler {
         return problem;
 
     }
+
     @ExceptionHandler(BadRequestException.class)
     public ProblemDetail handleInvalidRequest(BadRequestException e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         problem.setTitle("Invalid request");
         problem.setDetail(e.getMessage());
         problem.setProperty("code", "INVALID_REQUEST");
+        return problem;
+    }
+
+    @ExceptionHandler(ActiveGoalAlreadyExists.class)
+    public ProblemDetail handleActiveGoalAlreadyExists(ActiveGoalAlreadyExists e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        problem.setTitle("Active goal already exists");
+        problem.setDetail(e.getMessage());
+        problem.setProperty("code", "ACTIVE_GOAL_ALREADY_EXISTS");
         return problem;
     }
 }

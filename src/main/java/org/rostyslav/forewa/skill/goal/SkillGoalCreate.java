@@ -6,14 +6,15 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Date;
 
 public record SkillGoalCreate(
         @Size(min = 1, max = 160) @NotBlank String title,
-        @NotNull String successCriterion,
+        @NotBlank String successCriterion,
         BigDecimal baselineValue,
         BigDecimal targetValue,
         @Size(max = 40) String unit,
         LocalDate targetDate,
-        @NotBlank GoalStatus status
+        @NotNull GoalStatus status
 ) {
 }
