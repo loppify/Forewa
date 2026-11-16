@@ -1,18 +1,24 @@
 package org.rostyslav.forewa.skill.goal;
 
 import jakarta.validation.Valid;
-import org.apache.coyote.BadRequestException;
 import org.rostyslav.forewa.auth.UserAccount.UserAccount;
+import org.rostyslav.forewa.common.error.BadRequestException;
+import org.rostyslav.forewa.common.error.SkillDoesNotExist;
+import org.rostyslav.forewa.skill.SkillNode;
+import org.rostyslav.forewa.skill.SkillRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Service
 public class GoalService {
     private final GoalRepository goalRepository;
+    private final SkillRepository skillRepository;
 
-    public GoalService(GoalRepository goalRepository) {
+    public GoalService(GoalRepository goalRepository, SkillRepository skillRepository) {
         this.goalRepository = goalRepository;
+        this.skillRepository = skillRepository;
     }
 
 
@@ -23,15 +29,21 @@ public class GoalService {
             throw new BadRequestException("Invalid goal status");
         }
         SkillGoal activeGoal = goalRepository
-                .findByStatusAndSkillNode_Path_User_Id(
+                .findByStatusAndSkillNode_Path_User_IdAndSkillNodeId(
                         GoalStatus.ACTIVE,
-                        user.getId());
+                        user.getId(),
+                        skillId);
 
         if (activeGoal != null) {
             throw new BadRequestException("Active goal already exists");
         }
 
+        SkillNode skillNode = skillRepository
+                .findSkillNodeByIdAndArchivedAtIsNullAndPath_UserId(skillId, user.getId())
+                .orElseThrow(SkillDoesNotExist::new);
+
         SkillGoal goal = new SkillGoal();
+        goal.setSkillNode(skillNode);
         goal.setTitle(request.title());
         goal.setSuccessCriterion(request.successCriterion());
         goal.setBaselineValue(request.baselineValue());
@@ -39,6 +51,10 @@ public class GoalService {
         goal.setUnit(request.unit());
         goal.setTargetDate(request.targetDate());
         goal.setStatus(request.status());
+
+        if (request.status() == GoalStatus.ACTIVE) {
+            goal.setStartedAt(Instant.now());
+        }
 
         SkillGoal savedGoal = goalRepository.save(goal);
 

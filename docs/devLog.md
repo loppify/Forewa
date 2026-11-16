@@ -39,11 +39,23 @@ This log records the developer's work and learning for career reflection. It dis
 - POM review found Surefire's `@{argLine}` placeholder had no project property; the developer added an empty `<argLine/>` property, allowing the standard test JVM to start.
 - Test output shows Maven is running on JDK 27 even though `java.version` targets Java 21. Align the Maven runtime with JDK 21 (or deliberately configure a supported toolchain) when addressing JDK-specific warnings.
 
-## Current verification and follow-ups — 2026-11-15
+### Goal creation slice — in progress — 2026-11-16
+
+- Added the initial `SkillGoal` entity, create request/response DTOs, repository, service/controller endpoint, and `V3__skill_goal.sql` migration.
+- Learned to compare JPA entity mappings and Flyway column definitions using Hibernate's `ddl-auto=validate` rather than letting Hibernate alter the schema.
+- `mvn test` currently cannot initialize the application context: Hibernate reports that `baseline_value` is SQL `INTEGER` while the `BigDecimal` entity mapping expects `NUMERIC`. The `LocalDate`/`target_date` mapping and goal cardinality also need alignment with the spec.
+- Review follow-ups: associate each goal with the requested, authenticated user's trainable skill; scope the active-goal invariant to one goal per skill; correct enum validation; and set lifecycle timestamps appropriately. Goal creation is not complete yet.
+
+## Verification history — 2026-11-15
 
 - An earlier non-clean test run discovered a stale compiled `Checkpoint2Test` after its source was renamed. Its old cleanup code caused foreign-key errors; the current `Checkpoint2And3Test.clean()` deletes skills before paths.
 - Latest `mvn clean test`: **21 tests run, 0 failures, 0 errors**. The clean build removed stale test bytecode left by renaming the test class, and null-safe parent-ID response mapping fixed the root-skill NPE.
 - Checkpoint 3 is **in progress**, not complete. Remaining test coverage includes GET/list and individual skill reads, ordinary PATCH behavior, archive persistence, self-parent rejection, and tree persistence after reload/restart.
+
+## Current verification — 2026-11-16
+
+- `mvn test`: **21 tests run, 0 assertion failures, 21 errors** because Spring's application context fails Hibernate schema validation on `skill_goals.baseline_value` (`INTEGER` in Flyway, `NUMERIC` expected for `BigDecimal`). These are repeated context-load errors from one schema mismatch, not 21 independent test defects.
+- The newly added goal-creation slice remains **in progress**; see the follow-ups above before treating this as a working feature.
 
 ## Skills practiced
 

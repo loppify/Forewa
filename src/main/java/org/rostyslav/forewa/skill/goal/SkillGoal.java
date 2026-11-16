@@ -18,7 +18,7 @@ public class SkillGoal {
     @GeneratedValue(strategy = GenerationType.UUID)
     UUID id;
 
-    @OneToOne(optional = false, fetch = FetchType.LAZY)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "skill_id", nullable = false, updatable = false)
     SkillNode skillNode;
 

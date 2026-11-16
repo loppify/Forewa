@@ -1,7 +1,5 @@
 package org.rostyslav.forewa.common.error;
 
-import org.apache.coyote.BadRequestException;
-import org.hibernate.TransientPropertyValueException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
