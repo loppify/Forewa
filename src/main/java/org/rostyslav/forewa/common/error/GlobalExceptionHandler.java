@@ -80,4 +80,29 @@ public class GlobalExceptionHandler {
         problem.setProperty("code", "ACTIVE_GOAL_ALREADY_EXISTS");
         return problem;
     }
+
+    @ExceptionHandler(SkillGoalDoesNotExists.class)
+    public ProblemDetail handleSkillGoalDoesNotExists(SkillGoalDoesNotExists e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        problem.setTitle("Skill goal does not exist");
+        problem.setDetail(e.getMessage());
+        problem.setProperty("code", "SKILL_GOAL_DOES_NOT_EXIST");
+        return problem;
+    }
+    @ExceptionHandler(InvalidGoalTransition.class)
+    public ProblemDetail handleInvalidGoalTransition(InvalidGoalTransition e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        problem.setTitle("Invalid goal");
+        problem.setDetail(e.getMessage());
+        problem.setProperty("code", "INVALID_GOAL_TRANSITION");
+        return problem;
+    }
+    @ExceptionHandler(SkillIsNotTrainable.class)
+    public ProblemDetail handleSkillIsNotTrainable(SkillIsNotTrainable e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        problem.setTitle("Skill is not trainable");
+        problem.setDetail(e.getMessage());
+        problem.setProperty("code", "SKILL_IS_NOT_TRAINABLE");
+        return problem;
+    }
 }

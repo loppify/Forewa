@@ -45,7 +45,8 @@ This log records the developer's work and learning for career reflection. It dis
 - Learned to compare JPA entity mappings and Flyway column definitions using Hibernate's `ddl-auto=validate` rather than letting Hibernate alter the schema.
 - Corrected the numeric and date migration types to match the `BigDecimal` and `LocalDate` entity mappings, and retained the partial unique index for one active goal per skill rather than an unconditional unique constraint.
 - Updated goal creation to associate an owner-scoped skill, reject category skills, permit planned goals alongside an active goal, initialize the active start time, validate enum presence, and return a conflict for an existing active goal.
-- Goal creation remains in progress: there are not yet goal-specific endpoint tests, and the rest of the goal lifecycle is not implemented.
+- Added goal listing, activation, achievement, replacement, abandonment, and content-modification operations. Updated transitions to reject reactivating closed goals, made replacement close the active goal, and made PATCH text constraints permit omitted values while rejecting blank supplied text.
+- Owner-scoped goal listing and specific invalid-transition handling are now implemented. Error-contract follow-ups: route category-goal rejection through the specific not-trainable exception (the handler currently maps that code/status differently from the Sprint contract), map attempts to abandon an already closed goal to the transition error, add validation-error handling, and add goal endpoint tests. Checkpoint 4 remains in progress; no tests were run during the latest review, as requested.
 
 ## Verification history — 2026-11-15
 

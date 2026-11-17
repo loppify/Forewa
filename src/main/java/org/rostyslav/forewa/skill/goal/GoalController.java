@@ -1,12 +1,16 @@
 package org.rostyslav.forewa.skill.goal;
 
+import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import jakarta.validation.Valid;
 import org.rostyslav.forewa.auth.CurrentUser.CurrentUser;
 import org.rostyslav.forewa.auth.UserAccount.UserAccount;
 import org.rostyslav.forewa.common.error.BadRequestException;
+import org.rostyslav.forewa.common.error.SkillDoesNotExist;
+import org.rostyslav.forewa.common.error.SkillGoalDoesNotExists;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -25,5 +29,44 @@ public class GoalController {
                                              @PathVariable("skillId") UUID skillId) throws BadRequestException {
         return goalService.createSkillGoal(request, skillId, user);
 
+    }
+
+    @GetMapping("/skills/{skillId}/goals")
+    @ResponseStatus(HttpStatus.OK)
+    public List<SkillGoalResponse> getSkillGoals(@CurrentUser UserAccount user,
+                                                 @PathVariable("skillId") UUID skillId) throws SkillDoesNotExist {
+        return goalService.getSkillGoals(skillId, user);
+    }
+
+    @PostMapping("/goals/{goalId}/activate")
+    @ResponseStatus(HttpStatus.OK)
+    public void activateGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequestException {
+        goalService.activateGoal(goalId, user);
+    }
+
+    @PostMapping("/goals/{goalId}/achieve")
+    @ResponseStatus(HttpStatus.OK)
+    public void achieveGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequestException {
+        goalService.achieveGoal(goalId, user);
+    }
+
+    @PostMapping("/goals/{goalId}/replace")
+    @ResponseStatus(HttpStatus.OK)
+    public void replaceGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequestException {
+        goalService.replaceGoal(goalId, user);
+    }
+
+    @PostMapping("/goals/{goalId}/abandon")
+    @ResponseStatus(HttpStatus.OK)
+    public void abandonGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequestException {
+        goalService.abandonGoal(goalId, user);
+    }
+
+    @PatchMapping("/goals/{goalId}")
+    @ResponseStatus(HttpStatus.OK)
+    public SkillGoalResponse modifySkillGoal(@CurrentUser UserAccount user,
+                                             @PathVariable("goalId") UUID goalId,
+                                             @Valid @RequestBody SkillGoalModify request) throws SkillGoalDoesNotExists {
+        return goalService.modifySkillGoal(goalId, request, user);
     }
 }
