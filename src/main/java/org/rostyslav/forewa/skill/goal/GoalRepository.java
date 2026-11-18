@@ -18,4 +18,5 @@ public interface GoalRepository extends CrudRepository<SkillGoal, UUID> {
 
     boolean existsSkillGoalByStatusAndSkillNode_Id(GoalStatus status, UUID skillNodeId);
 
+    List<SkillGoal> findAllBySkillNodeId(UUID id);
 }

@@ -54,8 +54,6 @@ public class Checkpoint2And3Test {
     @Autowired
     UserAccountRepository userAccountRepository;
     @Autowired
-    SkillService skillService;
-    @Autowired
     SkillRepository skillRepository;
 
     private static final String SUB = "google-123";

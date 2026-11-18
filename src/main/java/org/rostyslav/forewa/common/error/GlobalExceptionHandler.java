@@ -1,5 +1,8 @@
 package org.rostyslav.forewa.common.error;
 
+import jakarta.validation.ConstraintViolation;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -89,6 +92,7 @@ public class GlobalExceptionHandler {
         problem.setProperty("code", "SKILL_GOAL_DOES_NOT_EXIST");
         return problem;
     }
+
     @ExceptionHandler(InvalidGoalTransition.class)
     public ProblemDetail handleInvalidGoalTransition(InvalidGoalTransition e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
@@ -97,6 +101,7 @@ public class GlobalExceptionHandler {
         problem.setProperty("code", "INVALID_GOAL_TRANSITION");
         return problem;
     }
+
     @ExceptionHandler(SkillIsNotTrainable.class)
     public ProblemDetail handleSkillIsNotTrainable(SkillIsNotTrainable e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
@@ -104,5 +109,23 @@ public class GlobalExceptionHandler {
         problem.setDetail(e.getMessage());
         problem.setProperty("code", "SKILL_IS_NOT_TRAINABLE");
         return problem;
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        Throwable cause = e;
+        while (cause != null) {
+            if (cause instanceof ConstraintViolationException constraintException &&
+                    "one_active_goal_per_skill_constraint".equals(constraintException.getConstraintName())) {
+                ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+                problem.setTitle("Active goal already exists");
+                problem.setDetail(e.getMessage());
+                problem.setProperty("code", "ACTIVE_GOAL_ALREADY_EXISTS");
+                return problem;
+            }
+            cause = cause.getCause();
+        }
+        throw e;
+
     }
 }

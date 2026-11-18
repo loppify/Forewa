@@ -47,6 +47,7 @@ This log records the developer's work and learning for career reflection. It dis
 - Updated goal creation to associate an owner-scoped skill, reject category skills, permit planned goals alongside an active goal, initialize the active start time, validate enum presence, and return a conflict for an existing active goal.
 - Added goal listing, activation, achievement, replacement, abandonment, and content-modification operations. Updated transitions to reject reactivating closed goals, made replacement close the active goal, and made PATCH text constraints permit omitted values while rejecting blank supplied text.
 - Owner-scoped goal listing and specific invalid-transition handling are now implemented. Error-contract follow-ups: route category-goal rejection through the specific not-trainable exception (the handler currently maps that code/status differently from the Sprint contract), map attempts to abandon an already closed goal to the transition error, add validation-error handling, and add goal endpoint tests. Checkpoint 4 remains in progress; no tests were run during the latest review, as requested.
+- Encountered a concurrent active-goal insert/update rejected by PostgreSQL's `one_active_goal_per_skill_constraint`. This confirms the database invariant is acting as the final concurrency guard; translate only this named constraint violation to the existing `ACTIVE_GOAL_ALREADY_EXISTS` 409 response. Follow-up remains open.
 
 ## Verification history — 2026-11-15
 
