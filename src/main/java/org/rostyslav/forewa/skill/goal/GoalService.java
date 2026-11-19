@@ -114,12 +114,14 @@ public class GoalService {
     public void activateGoal(UUID goalId, UserAccount user) {
         SkillGoal skillGoal = goalRepository.findSkillGoalByIdAndSkillNode_Path_User_Id(goalId, user.getId())
                 .orElseThrow(SkillGoalDoesNotExists::new);
-        if (goalRepository.existsSkillGoalByStatusAndSkillNode_Id(GoalStatus.ACTIVE, skillGoal.skillNode.getId())) {
-            throw new ActiveGoalAlreadyExists("Active goal already exists");
-        }
         if (skillGoal.status != GoalStatus.PLANNED) {
             throw new InvalidGoalTransition("Invalid goal transition");
         }
+
+        if (goalRepository.existsSkillGoalByStatusAndSkillNode_Id(GoalStatus.ACTIVE, skillGoal.skillNode.getId())) {
+            throw new ActiveGoalAlreadyExists("Active goal already exists");
+        }
+
         skillGoal.setStartedAt(Instant.now());
         skillGoal.status = GoalStatus.ACTIVE;
         goalRepository.save(skillGoal);

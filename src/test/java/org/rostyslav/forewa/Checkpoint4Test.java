@@ -9,11 +9,9 @@ import org.rostyslav.forewa.auth.UserAccount.UserAccountService;
 import org.rostyslav.forewa.path.PathRepository;
 import org.rostyslav.forewa.path.PathService;
 import org.rostyslav.forewa.path.PersonalPath;
-import org.rostyslav.forewa.path.PersonalPathResponse;
 import org.rostyslav.forewa.skill.NodeType;
 import org.rostyslav.forewa.skill.SkillNode;
 import org.rostyslav.forewa.skill.SkillRepository;
-import org.rostyslav.forewa.skill.SkillService;
 import org.rostyslav.forewa.skill.goal.GoalRepository;
 import org.rostyslav.forewa.skill.goal.GoalStatus;
 import org.rostyslav.forewa.skill.goal.SkillGoal;
@@ -63,8 +61,6 @@ public class Checkpoint4Test {
     UserAccountService userAccountService;
     @Autowired
     UserAccountRepository userAccountRepository;
-    @Autowired
-    SkillService skillService;
     @Autowired
     SkillRepository skillRepository;
     @Autowired
@@ -182,9 +178,11 @@ public class Checkpoint4Test {
                 SkillGoalResponse.class
         );
 
-        assertThat(goalRepository.findSkillGoalByIdAndSkillNode_Path_User_Id(response.id(), user.getId())
-                .isPresent())
-                .isTrue();
+        assertThat(goalRepository.findAllBySkillNodeId(skillNode.getId())
+                .stream()
+                .filter(g -> g.getStatus() == GoalStatus.ACTIVE)
+                .count())
+                .isEqualTo(1);
 
     }
 
@@ -224,11 +222,9 @@ public class Checkpoint4Test {
                 .andExpect(status().isOk())
                 .andReturn();
 
-        assertThat(goalRepository.findSkillGoalByIdAndSkillNode_Path_User_Id(skillGoal.getId(), user.getId())
-                .get()
-                .getStatus()
-                .equals(GoalStatus.ACTIVE))
-                .isTrue();
+        assertThat(goalRepository.findSkillGoalByIdAndSkillNode_Path_User_Id(skillGoal.getId(), user.getId()))
+                .hasValueSatisfying(foundGoal ->
+                        assertThat(foundGoal.getStatus()).isEqualTo(GoalStatus.ACTIVE));
 
         mvc.perform(post("/api/v1/goals/%s/activate".formatted(skillGoal2.getId()))
                         .with(oidcLogin()
@@ -240,9 +236,9 @@ public class Checkpoint4Test {
 
     int activateGoal(SkillGoal skillGoal) throws Exception {
         return mvc.perform(post("/api/v1/goals/%s/activate".formatted(skillGoal.getId()))
-                .with(oidcLogin()
-                        .idToken(t -> t.claim("sub", SUB)))
-                .with(csrf()))
+                        .with(oidcLogin()
+                                .idToken(t -> t.claim("sub", SUB)))
+                        .with(csrf()))
                 .andReturn()
                 .getResponse()
                 .getStatus();
@@ -297,7 +293,8 @@ public class Checkpoint4Test {
             Future<Integer> first = executor.submit(firstTask);
             Future<Integer> second = executor.submit(secondTask);
 
-            ready.await(5, TimeUnit.SECONDS);
+            boolean isReady = ready.await(5, TimeUnit.SECONDS);
+            assertThat(isReady).isTrue();
             start.countDown();
 
             int status1 = first.get(10, TimeUnit.SECONDS);
@@ -314,6 +311,116 @@ public class Checkpoint4Test {
                 .filter(g -> g.getStatus() == GoalStatus.ACTIVE)
                 .count())
                 .isEqualTo(1);
+    }
 
+    @Test
+    void testTransitionsHappyPath() throws Exception {
+        UserAccount user = getUser();
+        PersonalPath path = new PersonalPath();
+        path.setName("my path");
+        path.setUser(user);
+        pathRepository.save(path);
+
+        SkillNode skillNode = new SkillNode();
+        skillNode.setName("skill");
+        skillNode.setPath(path);
+        skillNode.setNodeType(NodeType.TRAINABLE);
+        skillRepository.save(skillNode);
+
+        SkillGoal skillGoal1 = createGoal(skillNode, "goal 1", GoalStatus.PLANNED);
+        assertGoalTransition(skillGoal1, user, "activate", GoalStatus.ACTIVE);
+        assertGoalTransition(skillGoal1, user, "achieve", GoalStatus.ACHIEVED);
+
+        SkillGoal skillGoal2 = createGoal(skillNode, "goal 2", GoalStatus.PLANNED);
+        assertGoalTransition(skillGoal2, user, "abandon", GoalStatus.ABANDONED);
+
+        SkillGoal skillGoal3 = createGoal(skillNode, "goal 3", GoalStatus.ACTIVE);
+        assertGoalTransition(skillGoal3, user, "replace", GoalStatus.REPLACED);
+
+        SkillGoal skillGoal4 = createGoal(skillNode, "goal 4", GoalStatus.ACTIVE);
+        assertGoalTransition(skillGoal4, user, "abandon", GoalStatus.ABANDONED);
+    }
+
+    @Test
+    void testTransitionsViolation() throws Exception {
+        UserAccount user = getUser();
+        PersonalPath path = new PersonalPath();
+        path.setName("my path");
+        path.setUser(user);
+        pathRepository.save(path);
+
+        SkillNode skillNode = new SkillNode();
+        skillNode.setName("skill");
+        skillNode.setPath(path);
+        skillNode.setNodeType(NodeType.TRAINABLE);
+        skillRepository.save(skillNode);
+
+        SkillGoal skillGoal1 = createGoal(skillNode, "goal 1", GoalStatus.PLANNED);
+        assertInvalidTransition(skillGoal1, "achieve");
+        assertGoalStatus(skillGoal1, user, GoalStatus.PLANNED);
+        assertInvalidTransition(skillGoal1, "replace");
+        assertGoalStatus(skillGoal1, user, GoalStatus.PLANNED);
+
+        SkillGoal skillGoal2 = createGoal(skillNode, "goal 2", GoalStatus.ACTIVE);
+        assertInvalidTransition(skillGoal2, "activate");
+        assertGoalStatus(skillGoal2, user, GoalStatus.ACTIVE);
+
+        SkillGoal skillGoal3 = createGoal(skillNode, "goal 3", GoalStatus.ABANDONED);
+        assertInvalidTransitions(skillGoal3);
+        assertGoalStatus(skillGoal3, user, GoalStatus.ABANDONED);
+
+        skillGoal3.setStatus(GoalStatus.ACHIEVED);
+        skillGoal3 = goalRepository.save(skillGoal3);
+        assertInvalidTransitions(skillGoal3);
+        assertGoalStatus(skillGoal3, user, GoalStatus.ACHIEVED);
+
+        skillGoal3.setStatus(GoalStatus.REPLACED);
+        skillGoal3 = goalRepository.save(skillGoal3);
+        assertInvalidTransitions(skillGoal3);
+        assertGoalStatus(skillGoal3, user, GoalStatus.REPLACED);
+    }
+
+    private SkillGoal createGoal(SkillNode skillNode, String title, GoalStatus status) {
+        SkillGoal goal = new SkillGoal();
+        goal.setTitle(title);
+        goal.setSuccessCriterion("success");
+        goal.setStatus(status);
+        goal.setSkillNode(skillNode);
+        return goalRepository.save(goal);
+    }
+
+    private void assertInvalidTransitions(SkillGoal goal) throws Exception {
+        for (String transition : List.of("activate", "achieve", "abandon", "replace")) {
+            assertInvalidTransition(goal, transition);
+        }
+    }
+
+    private void assertInvalidTransition(SkillGoal goal, String transition) throws Exception {
+        assertInvalidTransition(goal, transition, "INVALID_GOAL_TRANSITION");
+    }
+
+    private void assertInvalidTransition(SkillGoal goal, String transition, String errorCode) throws Exception {
+        mvc.perform(post("/api/v1/goals/%s/%s".formatted(goal.getId(), transition))
+                        .with(oidcLogin()
+                                .idToken(t -> t.claim("sub", SUB)))
+                        .with(csrf()))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value(errorCode));
+    }
+
+    private void assertGoalTransition(SkillGoal goal, UserAccount user, String transition,
+                                      GoalStatus expectedStatus) throws Exception {
+        mvc.perform(post("/api/v1/goals/%s/%s".formatted(goal.getId(), transition))
+                        .with(oidcLogin()
+                                .idToken(t -> t.claim("sub", SUB)))
+                        .with(csrf()))
+                .andExpect(status().isOk());
+        assertGoalStatus(goal, user, expectedStatus);
+    }
+
+    private void assertGoalStatus(SkillGoal goal, UserAccount user, GoalStatus expectedStatus) {
+        assertThat(goalRepository.findSkillGoalByIdAndSkillNode_Path_User_Id(goal.getId(), user.getId()))
+                .hasValueSatisfying(foundGoal ->
+                        assertThat(foundGoal.getStatus()).isEqualTo(expectedStatus));
     }
 }

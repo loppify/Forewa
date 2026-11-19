@@ -46,7 +46,8 @@ This log records the developer's work and learning for career reflection. It dis
 - Corrected the numeric and date migration types to match the `BigDecimal` and `LocalDate` entity mappings, and retained the partial unique index for one active goal per skill rather than an unconditional unique constraint.
 - Updated goal creation to associate an owner-scoped skill, reject category skills, permit planned goals alongside an active goal, initialize the active start time, validate enum presence, and return a conflict for an existing active goal.
 - Added goal listing, activation, achievement, replacement, abandonment, and content-modification operations. Updated transitions to reject reactivating closed goals, made replacement close the active goal, and made PATCH text constraints permit omitted values while rejecting blank supplied text.
-- Owner-scoped goal listing and specific invalid-transition handling are now implemented. Error-contract follow-ups: route category-goal rejection through the specific not-trainable exception (the handler currently maps that code/status differently from the Sprint contract), map attempts to abandon an already closed goal to the transition error, add validation-error handling, and add goal endpoint tests. Checkpoint 4 remains in progress; no tests were run during the latest review, as requested.
+- Owner-scoped goal listing and specific invalid-transition handling are now implemented. Error-contract follow-ups: route category-goal rejection through the specific not-trainable exception, map unexpected validation failures consistently, and avoid exposing raw database details in the active-goal constraint response. Checkpoint 4 remains in progress.
+- Added `Checkpoint4Test` coverage for multiple planned goals, active-goal creation/activation, sequential conflict, and concurrent activation. Latest review found missing assertions and lifecycle/ownership test cases; no tests were run during that review.
 - Encountered a concurrent active-goal insert/update rejected by PostgreSQL's `one_active_goal_per_skill_constraint`. This confirms the database invariant is acting as the final concurrency guard; translate only this named constraint violation to the existing `ACTIVE_GOAL_ALREADY_EXISTS` 409 response. Follow-up remains open.
 
 ## Verification history — 2026-11-15
@@ -59,6 +60,12 @@ This log records the developer's work and learning for career reflection. It dis
 
 - Latest `mvn test` — 2026-11-16: **21 tests run, 0 failures, 0 errors** after the goal-model/migration updates.
 - There are still no goal-specific tests in the test suite, so the goal creation endpoint and its domain rules are not yet verified. The new goal-creation slice remains **in progress**.
+
+## Latest test diagnosis — 2026-11-19
+
+- The developer reported `Checkpoint4Test.testTransitionsViolation` failing on a second direct repository save with `ObjectOptimisticLockingFailureException`.
+- Diagnosis: `SkillGoal` has `@Version`; the first save increments the persisted version. The test then reuses an older detached instance instead of the version returned by `save` or reloaded from the repository. The next save is rejected as stale.
+- Follow-up: keep the returned/reloaded entity when doing multiple direct persistence updates, or preferably set up terminal goal states through the goal lifecycle operations being tested. Not yet verified as fixed.
 
 ## Skills practiced
 
