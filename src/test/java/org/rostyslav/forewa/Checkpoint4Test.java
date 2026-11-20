@@ -423,4 +423,73 @@ public class Checkpoint4Test {
                 .hasValueSatisfying(foundGoal ->
                         assertThat(foundGoal.getStatus()).isEqualTo(expectedStatus));
     }
+
+    @Test
+    void categoryCannotReceiveGoal() throws Exception {
+        UserAccount user = getUser();
+
+        PersonalPath path = new PersonalPath();
+        path.setName("my path");
+        path.setUser(user);
+        pathRepository.save(path);
+
+        SkillNode skillNode = new SkillNode();
+        skillNode.setName("skill");
+        skillNode.setPath(path);
+        skillNode.setNodeType(NodeType.CATEGORY);
+        skillRepository.save(skillNode);
+
+        mvc.perform(post("/api/v1/skills/%s/goals".formatted(skillNode.getId()))
+                        .with(oidcLogin()
+                                .idToken(t -> t.claim("sub", SUB)))
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"test 1", "successCriterion":"test criterion 1", "status":"ACTIVE"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("SKILL_IS_NOT_TRAINABLE"))
+                .andReturn();
+
+        assertThat(goalRepository.findAllBySkillNodeId(skillNode.getId())
+                .size())
+                .isEqualTo(0);
+
+    }
+
+    @Test
+    void userBCannotMutateUserAGoal() throws Exception {
+        UserAccount user1 = getUser();
+        UserAccount user2 = getUserAdditional();
+
+        PersonalPath path = new PersonalPath();
+        path.setName("my path");
+        path.setUser(user2);
+        pathRepository.save(path);
+
+        SkillNode skillNode = new SkillNode();
+        skillNode.setName("skill");
+        skillNode.setPath(path);
+        skillNode.setNodeType(NodeType.TRAINABLE);
+        skillRepository.save(skillNode);
+
+        SkillGoal skillGoal = new SkillGoal();
+        skillGoal.setTitle("goal 2");
+        skillGoal.setSuccessCriterion("success");
+        skillGoal.setStatus(GoalStatus.PLANNED);
+        skillGoal.setSkillNode(skillNode);
+        goalRepository.save(skillGoal);
+
+        mvc.perform(post("/api/v1/goals/%s/activate".formatted(skillGoal.getId()))
+                        .with(oidcLogin()
+                                .idToken(t -> t.claim("sub", SUB)))
+                        .with(csrf()))
+                .andExpect(status().isNotFound())
+                .andReturn();
+
+        assertThat(goalRepository.findSkillGoalByIdAndSkillNode_Path_User_Id(skillGoal.getId(), user2.getId()))
+                .hasValueSatisfying(foundGoal ->
+                        assertThat(foundGoal.getStatus()).isEqualTo(GoalStatus.PLANNED));
+
+    }
 }
