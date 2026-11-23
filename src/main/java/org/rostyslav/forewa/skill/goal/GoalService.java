@@ -26,9 +26,9 @@ public class GoalService {
 
     public SkillGoalResponse createSkillGoal(@Valid SkillGoalCreate request,
                                              UUID skillId,
-                                             UserAccount user) throws BadRequestException {
+                                             UserAccount user) throws BadRequest {
         if (request.status() != GoalStatus.PLANNED && request.status() != GoalStatus.ACTIVE) {
-            throw new BadRequestException("Invalid goal status");
+            throw new BadRequest("Invalid goal status");
         }
         SkillGoal activeGoal = goalRepository
                 .findByStatusAndSkillNode_Path_User_IdAndSkillNodeId(
@@ -42,9 +42,11 @@ public class GoalService {
 
         SkillNode skillNode = skillRepository
                 .findSkillNodeByIdAndArchivedAtIsNullAndPath_UserId(skillId, user.getId())
-                .orElseThrow(SkillDoesNotExist::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Skill with id " + skillId + " not found"
+                ));
         if (skillNode.getNodeType() == NodeType.CATEGORY) {
-            throw new SkillIsNotTrainable();
+            throw new SkillNotTrainable();
         }
         SkillGoal goal = new SkillGoal();
         goal.setSkillNode(skillNode);
@@ -84,7 +86,9 @@ public class GoalService {
 
     public List<SkillGoalResponse> getSkillGoals(UUID skillId, UserAccount user) {
         skillRepository.findSkillNodeByIdAndArchivedAtIsNullAndPath_UserId(skillId, user.getId())
-                .orElseThrow(SkillDoesNotExist::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Skill with id " + skillId + " not found"
+                ));
         List<SkillGoal> skillGoals = goalRepository
                 .findAllBySkillNode_IdAndSkillNode_Path_User_IdOrderByStatus(skillId,
                         user.getId());
@@ -113,7 +117,9 @@ public class GoalService {
 
     public void activateGoal(UUID goalId, UserAccount user) {
         SkillGoal skillGoal = goalRepository.findSkillGoalByIdAndSkillNode_Path_User_Id(goalId, user.getId())
-                .orElseThrow(SkillGoalDoesNotExists::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Skill with id " + goalId + " not found"
+                ));
         if (skillGoal.status != GoalStatus.PLANNED) {
             throw new InvalidGoalTransition("Invalid goal transition");
         }
@@ -129,7 +135,9 @@ public class GoalService {
 
     public void achieveGoal(UUID goalId, UserAccount user) {
         SkillGoal skillGoal = goalRepository.findSkillGoalByIdAndSkillNode_Path_User_Id(goalId, user.getId())
-                .orElseThrow(SkillGoalDoesNotExists::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Skill with id " + goalId + " not found"
+                ));
         if (skillGoal.status != GoalStatus.ACTIVE) {
             throw new InvalidGoalTransition("Invalid goal transition");
         }
@@ -140,7 +148,9 @@ public class GoalService {
 
     public void replaceGoal(UUID goalId, UserAccount user) {
         SkillGoal skillGoal = goalRepository.findSkillGoalByIdAndSkillNode_Path_User_Id(goalId, user.getId())
-                .orElseThrow(SkillGoalDoesNotExists::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Skill with id " + goalId + " not found"
+                ));
         if (skillGoal.status != GoalStatus.ACTIVE) {
             throw new InvalidGoalTransition("Invalid goal transition");
         }
@@ -151,7 +161,9 @@ public class GoalService {
 
     public void abandonGoal(UUID goalId, UserAccount user) {
         SkillGoal skillGoal = goalRepository.findSkillGoalByIdAndSkillNode_Path_User_Id(goalId, user.getId())
-                .orElseThrow(SkillGoalDoesNotExists::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Skill with id " + goalId + " not found"
+                ));
         if (skillGoal.status == GoalStatus.ABANDONED) {
             throw new InvalidGoalTransition("Goal already abandoned");
         }
@@ -166,7 +178,9 @@ public class GoalService {
 
     public SkillGoalResponse modifySkillGoal(UUID goalId, SkillGoalModify request, UserAccount user) {
         SkillGoal skillGoal = goalRepository.findSkillGoalByIdAndSkillNode_Path_User_Id(goalId, user.getId())
-                .orElseThrow(SkillGoalDoesNotExists::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Goal with id " + goalId + " not found"
+                ));
 
         if (request.title() != null) {
             skillGoal.setTitle(request.title());

@@ -2,7 +2,7 @@ package org.rostyslav.forewa.auth.CurrentUser;
 
 import org.rostyslav.forewa.auth.UserAccount.UserAccount;
 import org.rostyslav.forewa.auth.UserAccount.UserAccountRepository;
-import org.rostyslav.forewa.common.error.AccountDoesNotExistException;
+import org.rostyslav.forewa.common.error.ResourceNotFound;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +17,8 @@ public class CurrentUserResolver {
     public UserAccount resolve(OidcUser principal) {
         return repository.findByGoogleSubject(principal.getSubject())
                 .filter(user -> user.getDeletedAt() == null)
-                .orElseThrow(AccountDoesNotExistException::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Account with subject " + principal.getSubject() + " not found"
+                ));
     }
 }

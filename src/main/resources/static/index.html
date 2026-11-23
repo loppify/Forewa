@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101424">
+  <meta name="description" content="Forewa — a place to build skills with intention.">
+  <title>Forewa · Your path forward</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/skill-graph.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <main id="login" class="login-screen" hidden>
+    <div class="login-art" aria-hidden="true">
+      <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div>
+      <div class="login-glyph">✦</div>
+    </div>
+    <div class="login-content">
+      <span class="eyebrow"><span class="eyebrow-line"></span> YOUR STORY STARTS HERE</span>
+      <div class="brand brand-large"><span class="brand-mark">✳</span> forewa<span class="brand-dot">.</span></div>
+      <h1>A little progress<br><em>becomes everything.</em></h1>
+      <p>Build a path to the skills you care about. Give every step a destination, and make the journey yours.</p>
+      <a class="button button-primary button-login" href="/oauth2/authorization/google"><span class="google-g">G</span> Continue with Google <span aria-hidden="true">↗</span></a>
+      <span class="login-footnote">A quiet place for big ambitions.</span>
+    </div>
+  </main>
+
+  <div id="app" class="app-shell" hidden>
+    <aside class="sidebar" aria-label="Main navigation">
+      <a href="#/" class="brand" aria-label="Forewa home"><span class="brand-mark">✳</span> forewa<span class="brand-dot">.</span></a>
+      <div class="sidebar-caption">YOUR SPACE</div>
+      <nav class="sidebar-nav">
+        <a href="#/" data-nav="home" class="nav-link"><span class="nav-icon" aria-hidden="true">◫</span> Overview</a>
+        <a href="#/paths" data-nav="paths" class="nav-link"><span class="nav-icon" aria-hidden="true">◇</span> My paths</a>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="sidebar-quote"><span>✦</span> “The path unfolds<br>one step at a time.”</div>
+        <button id="profile-button" type="button" class="profile-button"><span class="avatar" id="avatar">F</span><span class="profile-copy"><strong id="profile-name">Your space</strong><small>Account & timezone</small></span><span aria-hidden="true">⌄</span></button>
+      </div>
+    </aside>
+    <div class="main-column">
+      <header class="topbar"><div class="topbar-brand">FOREWA <span>/</span> <span id="location-label">Overview</span></div><div class="topbar-actions"><span class="topbar-date" id="today-label"></span><button id="top-profile" type="button" class="top-avatar" aria-label="Account settings">F</button></div></header>
+      <main id="view" class="view" tabindex="-1" aria-live="polite"></main>
+      <footer class="footer"><span>✳ forewa</span><span>Small steps. Real growth.</span></footer>
+    </div>
+  </div>
+
+  <div id="modal-root"></div>
+  <div id="toast-root" role="status" aria-live="polite"></div>
+</body>
+</html>

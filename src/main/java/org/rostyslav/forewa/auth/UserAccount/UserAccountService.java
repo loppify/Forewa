@@ -1,8 +1,8 @@
 package org.rostyslav.forewa.auth.UserAccount;
 
 import jakarta.transaction.Transactional;
-import org.rostyslav.forewa.common.error.AccountDoesNotExistException;
-import org.rostyslav.forewa.common.error.IllegalTimeZoneException;
+import org.rostyslav.forewa.common.error.IllegalTimeZone;
+import org.rostyslav.forewa.common.error.ResourceNotFound;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +13,7 @@ import java.util.Optional;
 
 @Service
 public class UserAccountService {
-    private UserAccountRepository userAccountRepository;
+    private final UserAccountRepository userAccountRepository;
 
     public UserAccountService(UserAccountRepository userAccountRepository) {
         this.userAccountRepository = userAccountRepository;
@@ -63,11 +63,13 @@ public class UserAccountService {
     @Transactional
     public UserAccountResponse updateMe(UserAccount user, UpdateMeRequest updateMeRequest) {
         UserAccount userAccount = userAccountRepository.findById(user.getId())
-                .orElseThrow(AccountDoesNotExistException::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Account with id " + user.getId() + " not found"
+                ));
 
         if (updateMeRequest.timezone() != null) {
             if (!ZoneId.getAvailableZoneIds().contains(updateMeRequest.timezone())) {
-                throw new IllegalTimeZoneException("Invalid timezone: " + updateMeRequest.timezone());
+                throw new IllegalTimeZone("Invalid timezone: " + updateMeRequest.timezone());
             }
             userAccount.setTimezone(updateMeRequest.timezone());
         }

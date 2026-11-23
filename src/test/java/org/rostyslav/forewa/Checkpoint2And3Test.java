@@ -299,7 +299,7 @@ public class Checkpoint2And3Test {
                                 """
                                         {"name":"Software Engineering", "nodeType":"TRAINABLE", "parentId":"%s"}
                                         """.formatted(skillNode.getId())))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isConflict());
     }
 
     @Test

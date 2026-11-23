@@ -65,7 +65,33 @@ This log records the developer's work and learning for career reflection. It dis
 
 - The developer reported `Checkpoint4Test.testTransitionsViolation` failing on a second direct repository save with `ObjectOptimisticLockingFailureException`.
 - Diagnosis: `SkillGoal` has `@Version`; the first save increments the persisted version. The test then reuses an older detached instance instead of the version returned by `save` or reloaded from the repository. The next save is rejected as stale.
-- Follow-up: keep the returned/reloaded entity when doing multiple direct persistence updates, or preferably set up terminal goal states through the goal lifecycle operations being tested. Not yet verified as fixed.
+- Updated the test to keep the entity returned from each save when manually seeding terminal statuses, so the next update carries the latest `@Version`. This avoids reusing the stale detached instance; rerun is still needed to verify.
+- Test-design follow-up: prefer creating terminal states through lifecycle operations, or seed matching lifecycle timestamps when direct persistence setup is intentional.
+- The developer chose to defer these test refinements and stronger concurrent-conflict assertions until the end of the sprint. Keep them as deferred follow-ups; focus on the current checkpoint work first.
+
+## Error-contract review — 2026-11-20
+
+- Reviewed `GlobalExceptionHandler` against Sprint 1 Checkpoint 5 without running tests.
+- Existing handlers provide `ProblemDetail` responses for several path, skill, and goal domain errors. Follow-ups: align `SKILL_IS_NOT_TRAINABLE` and `NodeTypeViolation` mappings with the documented codes/statuses; add a stable validation-error response; keep database constraint details out of client responses; and configure authentication/authorization failures in Spring Security's filter chain.
+- The Sprint document requires `RESOURCE_NOT_FOUND`, while current resource handlers emit resource-specific codes. Confirm whether those specific codes are acceptable additions or whether the contract should use the generic code.
+
+## API security errors — in progress — 2026-11-22
+
+- Added `ApiAuthenticationEntryPoint` and `ApiAccessDeniedHandler` in `SecurityConfig`, returning ProblemDetail bodies with `AUTH_REQUIRED` (401) and `FORBIDDEN` (403). These are user-authored additions following assistant examples; no successful request-level verification is recorded yet.
+- 2026-11-23: Wired an ordered `/api/**` security filter chain to both handlers, leaving the existing Google OIDC chain for other requests. Focused `mvn -Dtest=Checkpoint1Test test`: 8 run, 1 failure, 0 errors. Anonymous GET `/api/v1/me` now returns 401 with `AUTH_REQUIRED` as intended; the pre-existing test still expects the old 3xx redirect. The CSRF test passed but checks only 403 status, not the `FORBIDDEN` body. Update the test contract and verify both JSON codes; browser login remains unverified.
+
+## Sprint 1 Checkpoint 6 — UI implementation by assistant — 2026-11-23
+
+- At the developer's explicit request, the assistant built a desktop-first, phone-usable Spring-served HTML/CSS/JavaScript UI. The visual language is modern and anime-inspired through panels, color, and subtle geometry, without characters or character artwork. These UI files are assistant-authored, not claimed as the developer's own coding work.
+- The interface covers Google sign-in, account timezone confirmation/editing and sign-out, path creation/list/detail, nested category/trainable skill trees, and current/planned/historical goals with creation, editing, activation, achievement, replacement, and abandonment.
+- The assistant allowed public access to the landing page and static assets in the browser security chain, kept the API chain authenticated, and disabled API saved requests so anonymous page initialization does not redirect login back to JSON.
+- Verification: `node --check src/main/resources/static/app.js` passed; `mvn -Dtest=FrontendAccessTest test` passed (2 tests), confirming public UI assets and API 401/403 ProblemDetail responses. The first full `mvn test` run had two failures: an assistant-authored MockMvc assertion on `/` did not account for Spring's forward to `index.html` (corrected and focused test passed), and an existing goal test expected 400 while the current category-goal handler returns the documented 409. A full browser run through real Google login has not been verified yet.
+
+## Alternate skill graph — assistant implementation — 2026-11-23
+
+- At the developer's request, the assistant retained the nested skill tree and added an optional Obsidian-like graph view with connected category/trainable nodes. The Graph view switch lives in the existing account/settings panel and is stored in browser localStorage separately for each account; no backend preference or domain state changes were made.
+- The graph uses canvas to draw hierarchy links and labels and supports click-to-open, node dragging, background panning, wheel/button zoom, fit-to-view, responsive sizing, and a keyboard-accessible skill list. Moving a visual node does not change its saved parent relationship.
+- Verification: `node --test src/test/js/skill-graph.test.cjs` passed (node selection, drag without navigation, cleanup), JavaScript syntax checks passed for `app.js` and `skill-graph.js`, and `mvn -Dtest=FrontendAccessTest test` passed (2 tests, including public access to the graph script). A manual visual walkthrough behind real Google login remains for the developer.
 
 ## Skills practiced
 

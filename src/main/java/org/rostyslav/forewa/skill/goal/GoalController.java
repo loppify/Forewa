@@ -1,12 +1,10 @@
 package org.rostyslav.forewa.skill.goal;
 
-import com.nimbusds.oauth2.sdk.http.HTTPResponse;
 import jakarta.validation.Valid;
 import org.rostyslav.forewa.auth.CurrentUser.CurrentUser;
 import org.rostyslav.forewa.auth.UserAccount.UserAccount;
-import org.rostyslav.forewa.common.error.BadRequestException;
-import org.rostyslav.forewa.common.error.SkillDoesNotExist;
-import org.rostyslav.forewa.common.error.SkillGoalDoesNotExists;
+import org.rostyslav.forewa.common.error.BadRequest;
+import org.rostyslav.forewa.common.error.ResourceNotFound;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +24,7 @@ public class GoalController {
     @ResponseStatus(HttpStatus.CREATED)
     public SkillGoalResponse createSkillGoal(@CurrentUser UserAccount user,
                                              @Valid @RequestBody SkillGoalCreate request,
-                                             @PathVariable("skillId") UUID skillId) throws BadRequestException {
+                                             @PathVariable("skillId") UUID skillId) throws BadRequest {
         return goalService.createSkillGoal(request, skillId, user);
 
     }
@@ -34,31 +32,31 @@ public class GoalController {
     @GetMapping("/skills/{skillId}/goals")
     @ResponseStatus(HttpStatus.OK)
     public List<SkillGoalResponse> getSkillGoals(@CurrentUser UserAccount user,
-                                                 @PathVariable("skillId") UUID skillId) throws SkillDoesNotExist {
+                                                 @PathVariable("skillId") UUID skillId) throws ResourceNotFound {
         return goalService.getSkillGoals(skillId, user);
     }
 
     @PostMapping("/goals/{goalId}/activate")
     @ResponseStatus(HttpStatus.OK)
-    public void activateGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequestException {
+    public void activateGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequest {
         goalService.activateGoal(goalId, user);
     }
 
     @PostMapping("/goals/{goalId}/achieve")
     @ResponseStatus(HttpStatus.OK)
-    public void achieveGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequestException {
+    public void achieveGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequest {
         goalService.achieveGoal(goalId, user);
     }
 
     @PostMapping("/goals/{goalId}/replace")
     @ResponseStatus(HttpStatus.OK)
-    public void replaceGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequestException {
+    public void replaceGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequest {
         goalService.replaceGoal(goalId, user);
     }
 
     @PostMapping("/goals/{goalId}/abandon")
     @ResponseStatus(HttpStatus.OK)
-    public void abandonGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequestException {
+    public void abandonGoal(@CurrentUser UserAccount user, @PathVariable("goalId") UUID goalId) throws BadRequest {
         goalService.abandonGoal(goalId, user);
     }
 
@@ -66,7 +64,7 @@ public class GoalController {
     @ResponseStatus(HttpStatus.OK)
     public SkillGoalResponse modifySkillGoal(@CurrentUser UserAccount user,
                                              @PathVariable("goalId") UUID goalId,
-                                             @Valid @RequestBody SkillGoalModify request) throws SkillGoalDoesNotExists {
+                                             @Valid @RequestBody SkillGoalModify request) throws ResourceNotFound {
         return goalService.modifySkillGoal(goalId, request, user);
     }
 }

@@ -2,10 +2,7 @@ package org.rostyslav.forewa.skill;
 
 import jakarta.validation.Valid;
 import org.rostyslav.forewa.auth.UserAccount.UserAccount;
-import org.rostyslav.forewa.common.error.NodeHierarchyRecursion;
-import org.rostyslav.forewa.common.error.NodeTypeViolation;
-import org.rostyslav.forewa.common.error.PathDoesNotExistException;
-import org.rostyslav.forewa.common.error.SkillDoesNotExist;
+import org.rostyslav.forewa.common.error.*;
 import org.rostyslav.forewa.path.PathRepository;
 import org.rostyslav.forewa.path.PersonalPath;
 import org.springframework.stereotype.Service;
@@ -13,7 +10,6 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -26,16 +22,24 @@ public class SkillService {
         this.pathRepository = pathRepository;
     }
 
-    public SkillNodeResponse createSkill(@Valid SkillNodeCreate skillNodeCreate, UUID pathId, UserAccount user) throws SkillDoesNotExist {
+    public SkillNodeResponse createSkill(@Valid SkillNodeCreate skillNodeCreate,
+                                         UUID pathId,
+                                         UserAccount user) throws ResourceNotFound {
         PersonalPath path = pathRepository.findByIdAndUserId(pathId,
-                user.getId()).orElseThrow(PathDoesNotExistException::new);
+                user.getId()).orElseThrow(() -> new ResourceNotFound("Skill with id " + pathId + " not found"));
         SkillNode parentSkill = null;
         SkillNode skillNode = new SkillNode();
         if (skillNodeCreate.parentId() != null) {
-            parentSkill = skillRepository.findSkillNodeByIdAndPathAndArchivedAtIsNull(skillNodeCreate.parentId(), path).orElseThrow(SkillDoesNotExist::new);
+            parentSkill = skillRepository
+                    .findSkillNodeByIdAndPathAndArchivedAtIsNull(
+                            skillNodeCreate.parentId(),
+                            path)
+                    .orElseThrow(() -> new ResourceNotFound(
+                            "Skill with id " + skillNodeCreate.parentId() + " not found")
+                    );
 
             if (parentSkill.getNodeType().equals(NodeType.TRAINABLE)) {
-                throw new NodeTypeViolation();
+                throw new InvalidSkillHierarchy();
             }
             skillNode.setParent(parentSkill);
         }
@@ -72,7 +76,9 @@ public class SkillService {
     public List<SkillNodeResponse> getPathSkills(UUID pathId, UserAccount user) {
         PersonalPath path = pathRepository
                 .findByIdAndUserId(pathId, user.getId())
-                .orElseThrow(PathDoesNotExistException::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Path with id " + pathId + " not found"
+                ));
         List<SkillNode> skills = skillRepository.findAllByPathAndArchivedAtIsNull(path);
         List<SkillNodeResponse> responses = new ArrayList<>();
         for (SkillNode skillNode : skills) {
@@ -92,7 +98,9 @@ public class SkillService {
     public SkillNodeResponse getSkill(UUID skillId, UserAccount user) {
         SkillNode skillNode = skillRepository
                 .findSkillNodeByIdAndArchivedAtIsNullAndPath_UserId(skillId, user.getId())
-                .orElseThrow(SkillDoesNotExist::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Skill with id " + skillId + " not found"
+                ));
         return new SkillNodeResponse(
                 skillNode.getId(),
                 skillNode.getPath().getId(),
@@ -107,24 +115,28 @@ public class SkillService {
     public SkillNodeResponse modifySkill(UUID skillId, SkillNodeModify request, UserAccount user) {
         SkillNode skillNode = skillRepository
                 .findSkillNodeByIdAndArchivedAtIsNullAndPath_UserId(skillId, user.getId())
-                .orElseThrow(SkillDoesNotExist::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Skill with id " + skillId + " not found"
+                ));
 
         if (request.parentId() != null) {
             SkillNode skillNodeParent = skillRepository
                     .findSkillNodeByIdAndArchivedAtIsNullAndPath_UserIdAndPath(
                             request.parentId(),
                             user.getId(),
-                            skillNode.getPath()).orElseThrow(SkillDoesNotExist::new);
+                            skillNode.getPath()).orElseThrow(() -> new ResourceNotFound(
+                            "Skill with id " + request.parentId() + " not found"
+                    ));
             if (skillNodeParent.getNodeType().equals(NodeType.TRAINABLE)) {
                 throw new NodeTypeViolation();
             }
             if (skillNode.getId().equals(skillNodeParent.getId())) {
-                throw new NodeHierarchyRecursion();
+                throw new NodeHierarchyCycle();
             }
             SkillNode skillNodeParentRecursionCheck = skillNodeParent;
             while (skillNodeParentRecursionCheck != null) {
                 if (skillNodeParentRecursionCheck.getId().equals(skillNode.getId())) {
-                    throw new NodeHierarchyRecursion();
+                    throw new NodeHierarchyCycle();
                 }
                 skillNodeParentRecursionCheck = skillNodeParentRecursionCheck.getParent();
             }
@@ -159,7 +171,9 @@ public class SkillService {
     public void archiveSkill(UUID skillId, UserAccount user) {
         SkillNode skillNode = skillRepository
                 .findSkillNodeByIdAndArchivedAtIsNullAndPath_UserId(skillId, user.getId())
-                .orElseThrow(SkillDoesNotExist::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Skill with id " + skillId + " not found"
+                ));
 
         skillNode.setArchivedAt(Instant.now());
 

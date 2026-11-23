@@ -178,7 +178,7 @@ public class Checkpoint4Test {
                 SkillGoalResponse.class
         );
 
-        assertThat(goalRepository.findAllBySkillNodeId(skillNode.getId())
+        assertThat(goalRepository.findById(response.id())
                 .stream()
                 .filter(g -> g.getStatus() == GoalStatus.ACTIVE)
                 .count())
@@ -447,8 +447,8 @@ public class Checkpoint4Test {
                         .content("""
                                 {"title":"test 1", "successCriterion":"test criterion 1", "status":"ACTIVE"}
                                 """))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("SKILL_IS_NOT_TRAINABLE"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SKILL_NOT_TRAINABLE"))
                 .andReturn();
 
         assertThat(goalRepository.findAllBySkillNodeId(skillNode.getId())

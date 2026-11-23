@@ -2,7 +2,7 @@ package org.rostyslav.forewa.path;
 
 import jakarta.validation.Valid;
 import org.rostyslav.forewa.auth.UserAccount.UserAccount;
-import org.rostyslav.forewa.common.error.PathDoesNotExistException;
+import org.rostyslav.forewa.common.error.ResourceNotFound;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -52,7 +52,9 @@ public class PathService {
     }
 
     public PersonalPathResponse findPersonalPath(UUID id, UserAccount user) {
-        PersonalPath path = pathRepository.findByIdAndUserId(id, user.getId()).orElseThrow(PathDoesNotExistException::new);
+        PersonalPath path = pathRepository.findByIdAndUserId(id, user.getId()).orElseThrow(() -> new ResourceNotFound(
+                "Path with id " + id + " not found"
+        ));
 
         return new PersonalPathResponse(
                 path.getId(),
@@ -65,7 +67,9 @@ public class PathService {
     public PersonalPathResponse modifyPersonalPath(UUID id, UserAccount user, @Valid CreatePath path) {
         PersonalPath pathToModify = pathRepository
                 .findByIdAndUserId(id, user.getId())
-                .orElseThrow(PathDoesNotExistException::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Path with id " + id + " not found"
+                ));
 
         pathToModify.setName(path.name());
         pathToModify.setDescription(path.description());
@@ -82,7 +86,9 @@ public class PathService {
     public void archivePersonalPath(UUID id, UserAccount user) {
         PersonalPath pathToModify = pathRepository
                 .findByIdAndUserId(id, user.getId())
-                .orElseThrow(PathDoesNotExistException::new);
+                .orElseThrow(() -> new ResourceNotFound(
+                        "Path with id " + id + " not found"
+                ));
 
         pathToModify.setArchivedAt(Instant.now());
         pathRepository.save(pathToModify);

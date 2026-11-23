@@ -162,7 +162,7 @@ class Checkpoint1Test {
     void unauthenticatedMeIsRejected() throws Exception {
         mvc.perform(get("/api/v1/me")
                         .accept(MediaType.TEXT_HTML))
-                .andExpect(status().is3xxRedirection());
+                .andExpect(status().isUnauthorized());
     }
 
 }

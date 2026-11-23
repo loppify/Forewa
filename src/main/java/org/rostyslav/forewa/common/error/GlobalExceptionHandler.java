@@ -1,40 +1,22 @@
 package org.rostyslav.forewa.common.error;
 
-import jakarta.validation.ConstraintViolation;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-    @ExceptionHandler(AccountDoesNotExistException.class)
-    public ProblemDetail handleAccountDoesNotExistException(AccountDoesNotExistException e) {
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-
-        problem.setTitle("Account does not exist");
-        problem.setDetail(e.getMessage());
-        problem.setProperty("code", "ACCOUNT_DOES_NOT_EXIST");
-        return problem;
-    }
-
-    @ExceptionHandler(IllegalTimeZoneException.class)
-    public ProblemDetail handleIllegalTimeZoneException(IllegalTimeZoneException e) {
+    @ExceptionHandler(IllegalTimeZone.class)
+    public ProblemDetail handleIllegalTimeZoneException(IllegalTimeZone e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         problem.setTitle("Illegal time zone");
-        problem.setDetail(e.getMessage());
+        problem.setDetail("The provided time zone is invalid.");
         problem.setProperty("code", "INVALID_TIMEZONE");
-        return problem;
-    }
-
-    @ExceptionHandler(PathDoesNotExistException.class)
-    public ProblemDetail handlePathDoesNotExistException(PathDoesNotExistException e) {
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        problem.setTitle("Path does not exist");
-        problem.setDetail(e.getMessage());
-        problem.setProperty("code", "PATH_DOES_NOT_EXIST");
         return problem;
     }
 
@@ -42,35 +24,27 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleNodeTypeViolation(NodeTypeViolation e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         problem.setTitle("Node type violation");
-        problem.setDetail(e.getMessage());
+        problem.setDetail("The selected node type is not valid for this operation.");
         problem.setProperty("code", "INVALID_NODE_TYPE");
         return problem;
     }
 
-    @ExceptionHandler(SkillDoesNotExist.class)
-    public ProblemDetail handleSkillDoesNotExist(SkillDoesNotExist e) {
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        problem.setTitle("Skill does not exist");
-        problem.setDetail(e.getMessage());
-        problem.setProperty("code", "SKILL_DOES_NOT_EXIST");
-        return problem;
-    }
 
-    @ExceptionHandler(NodeHierarchyRecursion.class)
-    public ProblemDetail handleNodeHierarchyRecursion(NodeHierarchyRecursion e) {
+    @ExceptionHandler(NodeHierarchyCycle.class)
+    public ProblemDetail handleNodeHierarchyRecursion(NodeHierarchyCycle e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
         problem.setTitle("Node hierarchy recursion");
-        problem.setDetail(e.getMessage());
-        problem.setProperty("code", "NODE_HIERARCHY_RECURSION");
+        problem.setDetail("The requested hierarchy would create a cycle.");
+        problem.setProperty("code", "NODE_HIERARCHY_CYCLE");
         return problem;
 
     }
 
-    @ExceptionHandler(BadRequestException.class)
-    public ProblemDetail handleInvalidRequest(BadRequestException e) {
+    @ExceptionHandler(BadRequest.class)
+    public ProblemDetail handleInvalidRequest(BadRequest e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         problem.setTitle("Invalid request");
-        problem.setDetail(e.getMessage());
+        problem.setDetail("The request contains invalid data.");
         problem.setProperty("code", "INVALID_REQUEST");
         return problem;
     }
@@ -79,35 +53,27 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleActiveGoalAlreadyExists(ActiveGoalAlreadyExists e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
         problem.setTitle("Active goal already exists");
-        problem.setDetail(e.getMessage());
+        problem.setDetail("An active goal already exists.");
         problem.setProperty("code", "ACTIVE_GOAL_ALREADY_EXISTS");
         return problem;
     }
 
-    @ExceptionHandler(SkillGoalDoesNotExists.class)
-    public ProblemDetail handleSkillGoalDoesNotExists(SkillGoalDoesNotExists e) {
-        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
-        problem.setTitle("Skill goal does not exist");
-        problem.setDetail(e.getMessage());
-        problem.setProperty("code", "SKILL_GOAL_DOES_NOT_EXIST");
-        return problem;
-    }
 
     @ExceptionHandler(InvalidGoalTransition.class)
     public ProblemDetail handleInvalidGoalTransition(InvalidGoalTransition e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
         problem.setTitle("Invalid goal");
-        problem.setDetail(e.getMessage());
+        problem.setDetail("The goal cannot be changed to the requested state.");
         problem.setProperty("code", "INVALID_GOAL_TRANSITION");
         return problem;
     }
 
-    @ExceptionHandler(SkillIsNotTrainable.class)
-    public ProblemDetail handleSkillIsNotTrainable(SkillIsNotTrainable e) {
+    @ExceptionHandler(SkillNotTrainable.class)
+    public ProblemDetail handleSkillNotTrainable(SkillNotTrainable e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
         problem.setTitle("Skill is not trainable");
-        problem.setDetail(e.getMessage());
-        problem.setProperty("code", "SKILL_IS_NOT_TRAINABLE");
+        problem.setDetail("This skill cannot be trained.");
+        problem.setProperty("code", "SKILL_NOT_TRAINABLE");
         return problem;
     }
 
@@ -119,13 +85,50 @@ public class GlobalExceptionHandler {
                     "one_active_goal_per_skill_constraint".equals(constraintException.getConstraintName())) {
                 ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
                 problem.setTitle("Active goal already exists");
-                problem.setDetail(e.getMessage());
+                problem.setDetail("An active goal already exists.");
                 problem.setProperty("code", "ACTIVE_GOAL_ALREADY_EXISTS");
                 return problem;
             }
             cause = cause.getCause();
         }
+        assert e != null;
         throw e;
 
+    }
+
+    @ExceptionHandler(InvalidSkillHierarchy.class)
+    public ProblemDetail handleInvalidSkillHierarchy(InvalidSkillHierarchy e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
+        problem.setTitle("Invalid skill hierarchy");
+        problem.setDetail("The requested skill hierarchy is invalid.");
+        problem.setProperty("code", "INVALID_SKILL_HIERARCHY");
+        return problem;
+    }
+
+    @ExceptionHandler(ResourceNotFound.class)
+    public ProblemDetail handleResourceNotFound(ResourceNotFound e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.NOT_FOUND);
+        problem.setTitle("Resource not found");
+        problem.setDetail("The requested resource could not be found.");
+        problem.setProperty("code", "RESOURCE_NOT_FOUND");
+        return problem;
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ProblemDetail handleMethodArgumentNotValid(MethodArgumentNotValidException e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setTitle("Invalid request");
+        problem.setDetail("The request contains invalid data.");
+        problem.setProperty("code", "INVALID_REQUEST");
+        return problem;
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ProblemDetail handleHttpMessageNotReadable(HttpMessageNotReadableException e) {
+        ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        problem.setTitle("Invalid request");
+        problem.setDetail("The request contains invalid data.");
+        problem.setProperty("code", "INVALID_REQUEST");
+        return problem;
     }
 }
