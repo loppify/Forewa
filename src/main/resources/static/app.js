@@ -321,7 +321,7 @@ async function action(event) {
       }
       case "archive-skill": {
         if (!confirm(`Archive “${state.skill.name}”?`)) return;
-        await api(`/skills/${urlId(state.skill.id)}`, { method: "POST" }); notify("Skill archived."); location.hash = `#/paths/${urlId(state.path.id)}`; return;
+        await api(`/skills/${urlId(state.skill.id)}/archive`, { method: "POST" }); notify("Skill archived."); location.hash = `#/paths/${urlId(state.path.id)}`; return;
       }
       case "goal-activate": {
         if (state.goals.some(goal => goal.status === "ACTIVE") && !confirm("A current goal is already active. Try activating this planned goal anyway?")) return;

@@ -30,6 +30,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import tools.jackson.databind.ObjectMapper;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.*;
 
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -447,7 +449,7 @@ public class Checkpoint4Test {
                         .content("""
                                 {"title":"test 1", "successCriterion":"test criterion 1", "status":"ACTIVE"}
                                 """))
-                .andExpect(status().isBadRequest())
+                .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("SKILL_NOT_TRAINABLE"))
                 .andReturn();
 
@@ -491,5 +493,55 @@ public class Checkpoint4Test {
                 .hasValueSatisfying(foundGoal ->
                         assertThat(foundGoal.getStatus()).isEqualTo(GoalStatus.PLANNED));
 
+    }
+
+    @Test
+    void closedGoalsAreReadOnlyWhilePlannedAndActiveGoalsRemainEditable() throws Exception {
+        UserAccount user = getUser();
+        PersonalPath path = new PersonalPath();
+        path.setUser(user);
+        path.setName("Skill path");
+        path = pathRepository.save(path);
+
+        SkillNode skill = new SkillNode();
+        skill.setPath(path);
+        skill.setName("Practice");
+        skill.setNodeType(NodeType.TRAINABLE);
+        skill = skillRepository.save(skill);
+
+        for (GoalStatus status : List.of(GoalStatus.PLANNED, GoalStatus.ACTIVE)) {
+            SkillGoal goal = createGoal(skill, "Original " + status, status);
+            mvc.perform(patch("/api/v1/goals/{id}", goal.getId())
+                            .with(oidcLogin().idToken(token -> token.claim("sub", SUB)))
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"title\":\"Updated\"}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.title").value("Updated"));
+            assertThat(goalRepository.findById(goal.getId()).orElseThrow().getTitle()).isEqualTo("Updated");
+        }
+
+        for (GoalStatus status : List.of(GoalStatus.ACHIEVED, GoalStatus.REPLACED, GoalStatus.ABANDONED)) {
+            SkillGoal goal = new SkillGoal();
+            goal.setSkillNode(skill);
+            goal.setTitle("Original " + status);
+            goal.setSuccessCriterion("Original criterion");
+            goal.setStatus(status);
+            goal.setClosedAt(Instant.now());
+            goal = goalRepository.save(goal);
+
+            mvc.perform(patch("/api/v1/goals/{id}", goal.getId())
+                            .with(oidcLogin().idToken(token -> token.claim("sub", SUB)))
+                            .with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"title\":\"Changed\",\"successCriterion\":\"Changed criterion\"}"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.code").value("INVALID_GOAL_TRANSITION"));
+
+            SkillGoal saved = goalRepository.findById(goal.getId()).orElseThrow();
+            assertThat(saved.getTitle()).isEqualTo("Original " + status);
+            assertThat(saved.getSuccessCriterion()).isEqualTo("Original criterion");
+            assertThat(saved.getStatus()).isEqualTo(status);
+        }
     }
 }

@@ -100,7 +100,9 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleInvalidSkillHierarchy(InvalidSkillHierarchy e) {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.CONFLICT);
         problem.setTitle("Invalid skill hierarchy");
-        problem.setDetail("The requested skill hierarchy is invalid.");
+        problem.setDetail(e.getMessage() == null
+                ? "The requested skill hierarchy is invalid."
+                : e.getMessage());
         problem.setProperty("code", "INVALID_SKILL_HIERARCHY");
         return problem;
     }
@@ -119,7 +121,7 @@ public class GlobalExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         problem.setTitle("Invalid request");
         problem.setDetail("The request contains invalid data.");
-        problem.setProperty("code", "INVALID_REQUEST");
+        problem.setProperty("code", "VALIDATION_FAILED");
         return problem;
     }
 

@@ -48,7 +48,7 @@ public class SkillController {
         return skillService.modifySkill(skillId, request, user);
     }
 
-    @PostMapping("/skills/{skillId}")
+    @PostMapping("/skills/{skillId}/archive")
     @ResponseStatus(HttpStatus.OK)
     public void archiveSkill(@CurrentUser UserAccount user,
                                          @PathVariable("skillId") UUID skillId){

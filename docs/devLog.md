@@ -78,20 +78,60 @@ This log records the developer's work and learning for career reflection. It dis
 ## API security errors — in progress — 2026-11-22
 
 - Added `ApiAuthenticationEntryPoint` and `ApiAccessDeniedHandler` in `SecurityConfig`, returning ProblemDetail bodies with `AUTH_REQUIRED` (401) and `FORBIDDEN` (403). These are user-authored additions following assistant examples; no successful request-level verification is recorded yet.
-- 2026-11-23: Wired an ordered `/api/**` security filter chain to both handlers, leaving the existing Google OIDC chain for other requests. Focused `mvn -Dtest=Checkpoint1Test test`: 8 run, 1 failure, 0 errors. Anonymous GET `/api/v1/me` now returns 401 with `AUTH_REQUIRED` as intended; the pre-existing test still expects the old 3xx redirect. The CSRF test passed but checks only 403 status, not the `FORBIDDEN` body. Update the test contract and verify both JSON codes; browser login remains unverified.
+- 2026-11-23: Wired an ordered `/api/**` security filter chain to both handlers, leaving the existing Google OIDC chain for other requests. An early focused run confirmed API 401/`AUTH_REQUIRED` while an older test still expected a redirect; that test was later updated. The developer reports real Google login works. CSRF response-body coverage remains a separate follow-up.
 
 ## Sprint 1 Checkpoint 6 — UI implementation by assistant — 2026-11-23
 
 - At the developer's explicit request, the assistant built a desktop-first, phone-usable Spring-served HTML/CSS/JavaScript UI. The visual language is modern and anime-inspired through panels, color, and subtle geometry, without characters or character artwork. These UI files are assistant-authored, not claimed as the developer's own coding work.
 - The interface covers Google sign-in, account timezone confirmation/editing and sign-out, path creation/list/detail, nested category/trainable skill trees, and current/planned/historical goals with creation, editing, activation, achievement, replacement, and abandonment.
 - The assistant allowed public access to the landing page and static assets in the browser security chain, kept the API chain authenticated, and disabled API saved requests so anonymous page initialization does not redirect login back to JSON.
-- Verification: `node --check src/main/resources/static/app.js` passed; `mvn -Dtest=FrontendAccessTest test` passed (2 tests), confirming public UI assets and API 401/403 ProblemDetail responses. The first full `mvn test` run had two failures: an assistant-authored MockMvc assertion on `/` did not account for Spring's forward to `index.html` (corrected and focused test passed), and an existing goal test expected 400 while the current category-goal handler returns the documented 409. A full browser run through real Google login has not been verified yet.
+- Verification: `node --check src/main/resources/static/app.js` passed; `mvn -Dtest=FrontendAccessTest test` passed (2 tests), confirming public UI assets and API 401/403 ProblemDetail responses. Early assertion/contract test failures were corrected. On 2026-11-23 the developer reports completing a manual visual UI walkthrough and confirming real Google login works; this is user-reported verification, not assistant-run browser testing.
 
 ## Alternate skill graph — assistant implementation — 2026-11-23
 
 - At the developer's request, the assistant retained the nested skill tree and added an optional Obsidian-like graph view with connected category/trainable nodes. The Graph view switch lives in the existing account/settings panel and is stored in browser localStorage separately for each account; no backend preference or domain state changes were made.
 - The graph uses canvas to draw hierarchy links and labels and supports click-to-open, node dragging, background panning, wheel/button zoom, fit-to-view, responsive sizing, and a keyboard-accessible skill list. Moving a visual node does not change its saved parent relationship.
-- Verification: `node --test src/test/js/skill-graph.test.cjs` passed (node selection, drag without navigation, cleanup), JavaScript syntax checks passed for `app.js` and `skill-graph.js`, and `mvn -Dtest=FrontendAccessTest test` passed (2 tests, including public access to the graph script). A manual visual walkthrough behind real Google login remains for the developer.
+- Verification: `node --test src/test/js/skill-graph.test.cjs` passed (node selection, drag without navigation, cleanup), JavaScript syntax checks passed for `app.js` and `skill-graph.js`, and `mvn -Dtest=FrontendAccessTest test` passed (2 tests, including public access to the graph script). The developer reports the manual graph/UI visual walkthrough passed on 2026-11-23.
+
+## Current checkpoint verification — 2026-11-23
+
+- The developer reports Google login and the manual UI/graph visual walkthrough work. The assistant independently ran `mvn clean test`: **31 tests, 0 failures, 0 errors, 0 skipped**. This verifies the automated suite, not the full nine-part manual Sprint 1 exit test.
+- Next gate: confirm the full Sprint 1 exit scenario in the normal UI, especially blocked child-under-trainable behavior, goal history after relogin/restart, and direct cross-user ID access. Then do Checkpoint 7 cleanup/review; do not mark the sprint complete solely from a green build or visual walkthrough.
+- Follow-up report from the developer: the relogin/persistence and second-user ownership checks asked about in review are good. This is user-reported manual verification; the remaining Checkpoint 7 code cleanup/review has not yet been performed.
+
+## Checkpoint 7 review — 2026-11-23
+
+- Developer reported the preceding UI and ownership/persistence walkthroughs working and made a small goal-test expectation update to align category-goal errors with 409. Assistant review inspected Sprint 1 entity/service/security/error boundaries against the newer BRD v0.4 and Domain Spec v0.3 (which leave Sprint 1 scope unchanged).
+- `mvn clean test` independently verified again: **31 tests, 0 failures, 0 errors, 0 skipped**. This does not cover all archive/patch edge cases.
+- Review findings at that point: goal PATCH permitted changing closed-goal content (historical criterion integrity); skill PATCH permitted blank names; archiving a category with active descendants could detach them from the visible tree; request-validation errors used `INVALID_REQUEST` rather than the documented `VALIDATION_FAILED` code. These were review guidance, not completed fixes at the time.
+
+## Checkpoint 7 follow-up — 2026-11-23
+
+- The developer changed skill PATCH validation to allow an omitted name while rejecting supplied blank names, changed the skill archive API route to `/api/v1/skills/{skillId}/archive`, and mapped bean-validation failures to `VALIDATION_FAILED`. The developer chose to reject archiving categories with active children; this archive rule is a design decision, not implemented yet.
+- Independent `mvn clean test`: **31 tests, 0 failures, 0 errors, 0 skipped**. These tests do not verify category-archive rejection or the frontend archive action.
+- Follow-ups: implement the category-archive guard and its HTTP/domain error, update the assistant-authored frontend archive request to the renamed API route (currently still posts to `/api/v1/skills/{id}`), and verify both. Historical goal editing remains an unresolved policy question from review. Checkpoint 7 remains in progress.
+
+## Skill archive consistency — assistant fix — 2026-11-23
+
+- At the developer's explicit request, the assistant added a guard to reject archiving a category with unarchived direct children, returning `409 INVALID_SKILL_HIERARCHY` with an actionable message. A leaf can still be archived, and a category can be archived after its children are archived. This avoids leaving active children orphaned in the tree.
+- The assistant updated the UI archive action to call the documented `/api/v1/skills/{skillId}/archive` endpoint and added a PostgreSQL-backed MockMvc test of both rejection and the successful child-then-parent archive sequence. These changes are assistant-authored.
+- Verification: `mvn -Dtest=SkillArchiveTest test` passed (1 test), `node --check src/main/resources/static/app.js` passed, and `git diff --check` passed. The full suite has not been rerun since these changes. Historical goal-editing policy from Checkpoint 7 remains an open review question.
+
+## Post-archive verification — 2026-11-24
+
+- Assistant ran `mvn clean test` after the archive guard, UI route fix, and integration test: **32 tests, 0 failures, 0 errors, 0 skipped**. The prior note about not having rerun the full suite is now superseded.
+- Category-archive behavior is covered by a focused PostgreSQL-backed test, but the updated frontend archive button has not been manually rechecked since the URL change. Selected Sprint 1 manual checks are user-reported; completion of the exact nine-part exit test has not been explicitly confirmed. Historical closed-goal editing remains a product-policy decision before declaring Checkpoint 7 fully resolved.
+
+## Closed-goal history decision — 2026-11-24
+
+- The developer decided that `ACHIEVED`, `REPLACED`, and `ABANDONED` goals are read-only. This preserves the recorded success criterion and other historical content after a goal closes.
+- Implementation remains open: reject PATCH on closed goals in the goal service before applying fields, return the existing invalid-goal-transition conflict response, and verify that rejected edits leave the saved goal unchanged. `PLANNED` and `ACTIVE` goals remain editable.
+
+## Closed-goal read-only implementation — assistant fix — 2026-11-24
+
+- Following the developer's decision and request to carry the work forward, the assistant added a pre-mutation guard in `GoalService.modifySkillGoal`. PATCH now rejects `ACHIEVED`, `REPLACED`, and `ABANDONED` goals with `409 INVALID_GOAL_TRANSITION`; `PLANNED` and `ACTIVE` remain editable. This implementation and its test are assistant-authored.
+- Added a PostgreSQL-backed MockMvc test covering both editable states and all three closed states, including checks that rejected updates leave title, criterion, and status unchanged.
+- Verification: focused test passed (1 test); subsequent `mvn clean test` passed **33 tests, 0 failures, 0 errors, 0 skipped**. The previous note that implementation remained open is superseded.
 
 ## Skills practiced
 

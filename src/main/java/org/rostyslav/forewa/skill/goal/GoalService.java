@@ -182,6 +182,10 @@ public class GoalService {
                         "Goal with id " + goalId + " not found"
                 ));
 
+        if (skillGoal.status != GoalStatus.PLANNED && skillGoal.status != GoalStatus.ACTIVE) {
+            throw new InvalidGoalTransition("Closed goals are read-only");
+        }
+
         if (request.title() != null) {
             skillGoal.setTitle(request.title());
         }

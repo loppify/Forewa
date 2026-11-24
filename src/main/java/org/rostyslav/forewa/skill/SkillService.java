@@ -175,6 +175,11 @@ public class SkillService {
                         "Skill with id " + skillId + " not found"
                 ));
 
+        if (skillNode.getNodeType() == NodeType.CATEGORY
+                && skillRepository.existsByParent_IdAndArchivedAtIsNull(skillId)) {
+            throw new InvalidSkillHierarchy("Archive child skills first before archiving this category.");
+        }
+
         skillNode.setArchivedAt(Instant.now());
 
         skillRepository.save(skillNode);
